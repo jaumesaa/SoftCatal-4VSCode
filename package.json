@@ -1,0 +1,175 @@
+{
+  "name": "catala-softcatala",
+  "displayName": "Català - Corrector SoftCatalà",
+  "description": "Corrector ortogràfic i gramatical català amb SoftCatalà i LanguageTool",
+  "version": "0.1.0",
+  "publisher": "mainlab",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/catala-softcatala"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "catalan",
+    "català",
+    "grammar",
+    "spell checker",
+    "languagetool",
+    "softcatalà"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Català - SoftCatalà",
+      "properties": {
+        "catala.serverMode": {
+          "type": "string",
+          "default": "softcatala",
+          "enum": [
+            "softcatala",
+            "local"
+          ],
+          "enumDescriptions": [
+            "Usa l'API de SoftCatalà (requereix connexió a internet)",
+            "Usa un servidor LanguageTool local"
+          ],
+          "description": "Mode del servidor de correcció"
+        },
+        "catala.localServerUrl": {
+          "type": "string",
+          "default": "http://localhost:8081",
+          "description": "URL del servidor LanguageTool local (només si serverMode és 'local')"
+        },
+        "catala.softcatalaApiUrl": {
+          "type": "string",
+          "default": "https://api.softcatala.org/corrector/v2",
+          "description": "URL de l'API de SoftCatalà"
+        },
+        "catala.language": {
+          "type": "string",
+          "default": "ca-ES",
+          "enum": [
+            "ca-ES",
+            "ca-ES-valencia"
+          ],
+          "enumDescriptions": [
+            "Català general",
+            "Valencià"
+          ],
+          "description": "Variant del català"
+        },
+        "catala.autoCheck": {
+          "type": "boolean",
+          "default": true,
+          "description": "Comprova automàticament el text mentre escrius"
+        },
+        "catala.checkDelay": {
+          "type": "number",
+          "default": 500,
+          "description": "Retard en mil·lisegons abans de comprovar el text (per evitar masses peticions)"
+        },
+        "catala.enabledLanguages": {
+          "type": "array",
+          "default": [
+            "plaintext",
+            "markdown",
+            "latex"
+          ],
+          "description": "Llenguatges on activar la correcció"
+        },
+        "catala.checkCommentsOnly": {
+          "type": "boolean",
+          "default": true,
+          "description": "Comprova només els comentaris en fitxers de codi (habilitat per defecte)"
+        },
+        "catala.codeLanguages": {
+          "type": "array",
+          "default": [
+            "javascript",
+            "typescript",
+            "python",
+            "java",
+            "c",
+            "cpp",
+            "csharp",
+            "go",
+            "rust",
+            "php",
+            "ruby",
+            "swift",
+            "kotlin",
+            "scala",
+            "html",
+            "css",
+            "scss",
+            "less",
+            "vue",
+            "jsx",
+            "tsx"
+          ],
+          "description": "Llenguatges de programació on aplicar la correcció de comentaris"
+        }
+      }
+    },
+    "views": {
+      "catalaPanel": [
+        {
+          "id": "catalaErrorsPanel",
+          "name": "Corrector Català",
+          "type": "webview"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "catalaPanel",
+          "title": "Català",
+          "icon": "$(book)"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "catala.checkDocument",
+        "title": "Català: Comprova el document"
+      },
+      {
+        "command": "catala.clearDiagnostics",
+        "title": "Català: Neteja els diagnòstics"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.19.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
