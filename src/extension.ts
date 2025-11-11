@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { CatalaChecker } from './checker';
 import { CatalaCodeActionProvider } from './codeActionProvider';
 import { ErrorsPanelProvider, PanelError } from './errorsPanel';
+import { LanguageToolDownloader } from './languageToolDownloader';
 
 let checker: CatalaChecker | undefined;
 let errorsPanelProvider: ErrorsPanelProvider | undefined;
@@ -15,6 +16,11 @@ export function activate(context: vscode.ExtensionContext) {
         const config = vscode.workspace.getConfiguration('catala');
         config.update('serverMode', lastServerMode, vscode.ConfigurationTarget.Global);
     }
+
+    // Descarregar LanguageTool si no està descarregat (en background)
+    LanguageToolDownloader.ensureDownloaded(context.extensionPath).catch((error) => {
+        console.warn('SoftCatalà: Error descarregant LanguageTool (continuant sense offline):', error);
+    });
 
     // Crear el WebView Panel per mostrar errors
     errorsPanelProvider = new ErrorsPanelProvider(
@@ -80,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
             const config = vscode.workspace.getConfiguration('catala');
             config.update('serverMode', 'local', vscode.ConfigurationTarget.Global);
             context.globalState.update('lastServerMode', 'local');
-            vscode.window.showInformationMessage('Mode offline activat. L\'extensió usarà el servidor LanguageTool local.');
+            vscode.window.showInformationMessage('S\'usarà el servidor LanguageTool incrustado per corregir en català sense connexió a internet.');
             
             // Re-chequjar el document actual
             const editor = vscode.window.activeTextEditor;
@@ -118,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Crear el comprovador
-    checker = new CatalaChecker(errorsPanelProvider);
+    checker = new CatalaChecker(context.extensionPath, errorsPanelProvider);
 
     // Registrar el CodeActionProvider per a les correccions ràpides
     const codeActionProvider = vscode.languages.registerCodeActionsProvider(

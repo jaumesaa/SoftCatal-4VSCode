@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import axios, { AxiosInstance } from 'axios';
+import { LocalLanguageToolServer } from './localServer';
 
 interface LanguageToolMatch {
     message: string;
@@ -42,8 +43,11 @@ export class LanguageToolService {
     private readonly RETRY_DELAY = 1000; // 1 segon base, amb backoff exponencial
     private autoFallbackAttempted: boolean = false; // Flag per a evitar reintentar fallback
     private hasLocalServer: boolean = false; // Detecta si hi ha servidor local disponible
+    private localServer: LocalLanguageToolServer | undefined; // Servidor incrustado
+    private extensionPath: string;
 
-    constructor() {
+    constructor(extensionPath: string) {
+        this.extensionPath = extensionPath;
         this.client = axios.create({
             timeout: 30000,
             headers: {
@@ -55,6 +59,7 @@ export class LanguageToolService {
         this.baseUrl = '';
         this.language = 'ca-ES';
         this.verbForms = 'central';
+        this.localServer = new LocalLanguageToolServer(extensionPath);
         this.updateConfiguration();
         this.initOnlineDetection();
     }
@@ -96,6 +101,16 @@ export class LanguageToolService {
 
     public async check(text: string): Promise<LanguageToolMatch[]> {
         try {
+            // Si estem en mode local, assegurar que el servidor està en execució
+            if (this.serverMode === 'local' && this.localServer) {
+                try {
+                    await this.localServer.start();
+                } catch (error) {
+                    console.error('SoftCatalà: Error al iniciar servidor local:', error);
+                    throw error;
+                }
+            }
+
             // Comprovar si tenim resultat en caché
             const cached = this.getFromCache(text);
             if (cached) {
@@ -276,5 +291,11 @@ export class LanguageToolService {
     public async checkMultiple(texts: string[]): Promise<LanguageToolMatch[][]> {
         const results = await Promise.all(texts.map(text => this.check(text)));
         return results;
+    }
+
+    public dispose(): void {
+        if (this.localServer) {
+            this.localServer.dispose();
+        }
     }
 }

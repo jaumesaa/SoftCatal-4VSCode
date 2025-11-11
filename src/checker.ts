@@ -17,9 +17,9 @@ export class CatalaChecker {
     private readonly ERROR_POPUP_COOLDOWN = 30000; // 30 segons entre popups
     private disableCapitalizationRules: boolean = false; // Flag per deshabilitar majúscules
 
-    constructor(errorsPanelProvider?: ErrorsPanelProvider) {
+    constructor(extensionPath: string, errorsPanelProvider?: ErrorsPanelProvider) {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('catala');
-        this.languageToolService = new LanguageToolService();
+        this.languageToolService = new LanguageToolService(extensionPath);
         this.enabledLanguages = this.getEnabledLanguages();
         this.codeLanguages = this.getCodeLanguages();
         this.checkCommentsOnly = this.getCheckCommentsOnly();
@@ -327,5 +327,6 @@ export class CatalaChecker {
             clearTimeout(this.checkTimeout);
         }
         this.diagnosticCollection.dispose();
+        this.languageToolService.dispose();
     }
 }

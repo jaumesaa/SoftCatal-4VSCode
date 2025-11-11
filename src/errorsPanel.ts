@@ -668,8 +668,8 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     <div style="margin-bottom: 8px;">
                         Proper intent en: <span class="countdown-value" id="countdownValue">0</span>s
                     </div>
-                    <button id="offlineModeBtn" class="offline-btn" onclick="switchToOffline()">Canviar a Mode Offline</button>
-                    <button id="onlineModeBtn" class="online-btn" onclick="switchToOnline()">Canviar a Mode Online</button>
+                    <button id="offlineModeBtn" class="offline-btn" onclick="switchToOffline()">Usar servidor LanguageTool local</button>
+                    <button id="onlineModeBtn" class="online-btn" onclick="switchToOnline()">Usar API de SoftCatalà (online)</button>
                 </div>
             </div>
 
