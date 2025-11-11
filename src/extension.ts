@@ -9,6 +9,13 @@ let errorsPanelProvider: ErrorsPanelProvider | undefined;
 export function activate(context: vscode.ExtensionContext) {
     console.log('Extensió Català - SoftCatalà activada');
 
+    // Restaurar el mode del servidor de l'última sessió
+    const lastServerMode = context.globalState.get<string>('lastServerMode');
+    if (lastServerMode) {
+        const config = vscode.workspace.getConfiguration('catala');
+        config.update('serverMode', lastServerMode, vscode.ConfigurationTarget.Global);
+    }
+
     // Crear el WebView Panel per mostrar errors
     errorsPanelProvider = new ErrorsPanelProvider(
         context.extensionUri,
@@ -62,9 +69,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
         },
         () => {
-            // Quan s'obri el panell: comprovar el document actual
+            // Quan s'obri el panell: comprovar el document actual NOMÉS si està actiu
             const editor = vscode.window.activeTextEditor;
-            if (editor) {
+            if (editor && errorsPanelProvider?.getExtensionActive()) {
                 checker?.checkDocument(editor.document);
             }
         },
@@ -72,6 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
             // Canviar a mode offline
             const config = vscode.workspace.getConfiguration('catala');
             config.update('serverMode', 'local', vscode.ConfigurationTarget.Global);
+            context.globalState.update('lastServerMode', 'local');
             vscode.window.showInformationMessage('Mode offline activat. L\'extensió usarà el servidor LanguageTool local.');
             
             // Re-chequjar el document actual
@@ -80,6 +88,25 @@ export function activate(context: vscode.ExtensionContext) {
                 checker?.updateConfiguration();
                 checker?.checkDocument(editor.document);
             }
+        },
+        () => {
+            // Canviar a mode online
+            const config = vscode.workspace.getConfiguration('catala');
+            config.update('serverMode', 'softcatala', vscode.ConfigurationTarget.Global);
+            context.globalState.update('lastServerMode', 'softcatala');
+            vscode.window.showInformationMessage('Mode online activat. L\'extensió usarà l\'API de SoftCatalà.');
+            
+            // Re-chequjar el document actual
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                checker?.updateConfiguration();
+                checker?.checkDocument(editor.document);
+            }
+        },
+        () => {
+            // Quan es pausa l'extensió: netejar diagnòstics
+            checker?.clearDiagnostics();
+            errorsPanelProvider?.clearErrors();
         }
     );
 
@@ -119,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Escoltar canvis en el document
     const changeListener = vscode.workspace.onDidChangeTextDocument((event) => {
         const config = vscode.workspace.getConfiguration('catala');
-        if (config.get('autoCheck')) {
+        if (config.get('autoCheck') && errorsPanelProvider?.getExtensionActive()) {
             checker?.scheduleCheck(event.document);
         }
     });
@@ -128,7 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
     const editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor) {
             const config = vscode.workspace.getConfiguration('catala');
-            if (config.get('autoCheck')) {
+            if (config.get('autoCheck') && errorsPanelProvider?.getExtensionActive()) {
                 checker?.scheduleCheck(editor.document);
             }
         }

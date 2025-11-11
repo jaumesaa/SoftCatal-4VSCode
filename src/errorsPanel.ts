@@ -21,10 +21,11 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'catalaErrorsPanel';
     private _view?: vscode.WebviewView;
     private errors: PanelError[] = [];
-    private isLoading: boolean = false;
+    private isLoading: boolean = true;
     private connectionStatus: ConnectionStatus = { online: true, errorCount: 0 };
     private countdownInterval?: NodeJS.Timeout;
     private disableCapitalizationRules: boolean = false;
+    private isExtensionActive: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -34,7 +35,9 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         private readonly onVerbFormsChanged?: (verbForms: 'central' | 'valenciana' | 'balear') => void,
         private readonly onCapitalizationToggled?: (disabled: boolean) => void,
         private readonly onPanelOpened?: () => void,
-        private readonly onOfflineMode?: () => void
+        private readonly onOfflineMode?: () => void,
+        private readonly onOnlineMode?: () => void,
+        private readonly onExtensionPaused?: () => void
     ) {
         // Inicialitzar la configuració de capitalització
         const config = vscode.workspace.getConfiguration('catala');
@@ -71,6 +74,14 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
             disableCapitalization: disableCapitalization
         });
 
+        // Enviar estat de càrrega inicial
+        webviewView.webview.postMessage({
+            type: 'update',
+            errors: this.errors,
+            isLoading: this.isLoading,
+            connectionStatus: this.connectionStatus
+        });
+
         // Gestionar missatges del webview
         webviewView.webview.onDidReceiveMessage(data => {
             switch (data.type) {
@@ -105,6 +116,23 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 case 'offlineMode':
                     if (this.onOfflineMode) {
                         this.onOfflineMode();
+                    }
+                    break;
+                case 'onlineMode':
+                    if (this.onOnlineMode) {
+                        this.onOnlineMode();
+                    }
+                    break;
+                case 'extensionActivated':
+                    this.setExtensionActive(true);
+                    if (this.onPanelOpened) {
+                        this.onPanelOpened();
+                    }
+                    break;
+                case 'extensionPaused':
+                    this.setExtensionActive(false);
+                    if (this.onExtensionPaused) {
+                        this.onExtensionPaused();
                     }
                     break;
             }
@@ -183,13 +211,24 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         return this.disableCapitalizationRules;
     }
 
+    public setExtensionActive(active: boolean) {
+        this.isExtensionActive = active;
+        this.isLoading = active ? true : false;
+        this._update();
+    }
+
+    public getExtensionActive(): boolean {
+        return this.isExtensionActive;
+    }
+
     private _update() {
         if (this._view) {
             this._view.webview.postMessage({
                 type: 'update',
                 errors: this.errors,
                 isLoading: this.isLoading,
-                connectionStatus: this.connectionStatus
+                connectionStatus: this.connectionStatus,
+                isExtensionActive: this.isExtensionActive
             });
         }
     }
@@ -442,6 +481,76 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     transform: translateY(-1px);
                 }
 
+                .online-btn {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-family: var(--vscode-font-family);
+                    transition: all 0.2s;
+                    width: 100%;
+                    margin-top: 8px;
+                }
+
+                .online-btn:hover {
+                    background-color: var(--vscode-button-hoverBackground);
+                    transform: translateY(-1px);
+                }
+
+                .activation-container {
+                    display: flex;
+                    gap: 8px;
+                    margin-top: 16px;
+                }
+
+                .activation-btn {
+                    flex: 1;
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    padding: 12px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    font-weight: 600;
+                    font-family: var(--vscode-font-family);
+                    transition: all 0.2s;
+                }
+
+                .activation-btn:hover {
+                    background-color: var(--vscode-button-hoverBackground);
+                    transform: translateY(-2px);
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                }
+
+                .activation-btn.pause {
+                    background-color: var(--vscode-editorWarning-foreground);
+                    opacity: 0.8;
+                }
+
+                .activation-btn.pause:hover {
+                    opacity: 1;
+                }
+
+                .inactive-state {
+                    text-align: center;
+                    padding: 40px 20px;
+                    color: var(--vscode-descriptionForeground);
+                }
+
+                .inactive-state-icon {
+                    font-size: 48px;
+                    margin-bottom: 16px;
+                }
+
+                .inactive-state-text {
+                    font-size: 14px;
+                    margin-bottom: 24px;
+                }
+
                 .ignore-btn:hover {
                     background-color: var(--vscode-button-secondaryHoverBackground);
                     border-color: var(--vscode-focusBorder);
@@ -535,6 +644,10 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     <div class="status-indicator online" id="statusIndicator"></div>
                     <div class="status-text" id="statusText">Connectat</div>
                 </div>
+                <div id="activationContainer" class="activation-container" style="display: flex;">
+                    <button id="activateBtn" class="activation-btn" onclick="activateExtension()">▶ ACTIVAR</button>
+                    <button id="pauseBtn" class="activation-btn pause" onclick="pauseExtension()" style="display: none;">⏸ PAUSAR</button>
+                </div>
             </div>
 
             <div id="settings" class="settings-section" style="display: none;">
@@ -556,6 +669,7 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                         Proper intent en: <span class="countdown-value" id="countdownValue">0</span>s
                     </div>
                     <button id="offlineModeBtn" class="offline-btn" onclick="switchToOffline()">Canviar a Mode Offline</button>
+                    <button id="onlineModeBtn" class="online-btn" onclick="switchToOnline()">Canviar a Mode Online</button>
                 </div>
             </div>
 
@@ -582,7 +696,7 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 window.addEventListener('message', event => {
                     const message = event.data;
                     if (message.type === 'update') {
-                        updateUI(message.errors, message.isLoading, message.connectionStatus);
+                        updateUI(message.errors, message.isLoading, message.connectionStatus, message.isExtensionActive);
                     } else if (message.type === 'init') {
                         // Inicialitzar configuració guardada
                         const verbFormsSelect = document.getElementById('verbFormsSelect');
@@ -598,17 +712,32 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     }
                 });
 
-                function updateUI(errors, isLoading, connectionStatus) {
+                function updateUI(errors, isLoading, connectionStatus, isExtensionActive) {
+                    // Actualitzar botons d'activació/pausa
+                    updateActivationButtons(isExtensionActive);
+
                     // Actualitzar estat de connexió
                     updateConnectionStatus(connectionStatus);
 
                     const content = document.getElementById('content');
 
+                    // Si l'extensió no està activa, mostrar panell d'inactivitat
+                    if (!isExtensionActive) {
+                        content.innerHTML = \`
+                            <div class="inactive-state">
+                                <div class="inactive-state-icon">⏸</div>
+                                <div class="inactive-state-text">Extensió pausada</div>
+                                <p>Prem el botó ACTIVAR per començar a detectar errors</p>
+                            </div>
+                        \`;
+                        return;
+                    }
+
                     if (isLoading) {
                         content.innerHTML = \`
                             <div class="loading">
                                 <div class="spinner"></div>
-                                <div>Comprovant...</div>
+                                <div>Detectant errors...</div>
                             </div>
                         \`;
                         return;
@@ -750,6 +879,43 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 function switchToOffline() {
                     vscode.postMessage({
                         type: 'offlineMode'
+                    });
+                }
+
+                function switchToOnline() {
+                    vscode.postMessage({
+                        type: 'onlineMode'
+                    });
+                }
+
+                function updateActivationButtons(isActive) {
+                    const activationContainer = document.getElementById('activationContainer');
+                    const activateBtn = document.getElementById('activateBtn');
+                    const pauseBtn = document.getElementById('pauseBtn');
+                    const settings = document.getElementById('settings');
+
+                    if (isActive) {
+                        // Extensión activa
+                        if (activateBtn) activateBtn.style.display = 'none';
+                        if (pauseBtn) pauseBtn.style.display = 'block';
+                        if (settings) settings.style.display = 'block';
+                    } else {
+                        // Extensión pausada
+                        if (activateBtn) activateBtn.style.display = 'block';
+                        if (pauseBtn) pauseBtn.style.display = 'none';
+                        if (settings) settings.style.display = 'none';
+                    }
+                }
+
+                function activateExtension() {
+                    vscode.postMessage({
+                        type: 'extensionActivated'
+                    });
+                }
+
+                function pauseExtension() {
+                    vscode.postMessage({
+                        type: 'extensionPaused'
                     });
                 }
 
