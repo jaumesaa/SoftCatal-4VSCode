@@ -5,7 +5,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as os from 'os';
 import * as fs from 'fs';
 import axios from 'axios';
-import { LanguageToolDownloader } from './languageToolDownloader';
+import { LanguageToolHelper } from './languageToolHelper';
 
 export class LocalLanguageToolServer {
     private serverProcess: ChildProcess | undefined;
@@ -48,6 +48,17 @@ export class LocalLanguageToolServer {
 
             console.log('SoftCatalà: Iniciant servidor LanguageTool local...');
 
+            // Verificar que el JAR existe
+            const jarPath = this.getLanguageToolPath();
+            if (!fs.existsSync(jarPath)) {
+                throw new Error(
+                    `El archivo LanguageTool.jar no se encuentra en: ${jarPath}. ` +
+                    `Por favor, asegúrate de que LanguageTool está descargado. ` +
+                    `Usa la opción de modo online o descarga LanguageTool desde: ` +
+                    `https://languagetool.org/download/`
+                );
+            }
+
             // Intentar detectar Java instalado
             const javaPath = this.findJava();
             if (!javaPath) {
@@ -57,6 +68,9 @@ export class LocalLanguageToolServer {
                     'Descarrega\'l des de: https://www.java.com/es/download/'
                 );
             }
+
+            console.log('SoftCatalà: Java detectado en:', javaPath);
+            console.log('SoftCatalà: JAR en:', jarPath);
 
             // Intentar iniciar el servidor
             await this.launchServer(javaPath);
@@ -75,22 +89,36 @@ export class LocalLanguageToolServer {
     }
 
     private findJava(): string | null {
-        const possiblePaths = [
-            'java', // En PATH
-            '/usr/bin/java', // macOS/Linux estàndar
-            '/opt/java/openjdk/bin/java', // Java comú
-            'C:\\Program Files\\Java\\jdk-*/bin\\java.exe', // Windows
-            'C:\\Program Files (x86)\\Java\\jre*/bin\\java.exe',
-        ];
+        const isWindows = process.platform === 'win32';
+        
+        const possiblePaths = isWindows
+            ? [
+                'java.exe', // En PATH
+                'C:\\Program Files\\Java\\jdk-21\\bin\\java.exe',
+                'C:\\Program Files\\Java\\jdk-20\\bin\\java.exe',
+                'C:\\Program Files\\Java\\jdk-19\\bin\\java.exe',
+                'C:\\Program Files\\Java\\jdk-18\\bin\\java.exe',
+                'C:\\Program Files (x86)\\Java\\jre1.8.0_431\\bin\\java.exe',
+                'C:\\Program Files\\OpenJDK\\bin\\java.exe',
+              ]
+            : [
+                'java', // En PATH
+                '/usr/bin/java', // macOS/Linux estàndar
+                '/usr/local/bin/java', // macOS (Homebrew)
+                '/opt/java/openjdk/bin/java', // Java comú
+                '/opt/jdk/bin/java',
+              ];
 
         for (const javaPath of possiblePaths) {
             try {
                 // Verificar que Java existeix i funciona
                 const result = require('child_process').spawnSync(javaPath, ['-version'], {
                     encoding: 'utf-8',
-                    stdio: 'pipe'
+                    stdio: 'pipe',
+                    timeout: 5000
                 });
                 if (result.status === 0) {
+                    console.log(`SoftCatalà: Java trovado en: ${javaPath}`);
                     return javaPath;
                 }
             } catch (e) {
@@ -98,16 +126,37 @@ export class LocalLanguageToolServer {
             }
         }
 
+        console.error('SoftCatalà: Java no trovado en ninguna ubicación conocida');
         return null;
     }
 
     private async launchServer(javaPath: string): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                // Iniciar el servidor LanguageTool (versió 6.x compatible amb català)
+                // Obtener la ruta a la carpeta de LanguageTool
+                const langToolDir = path.dirname(this.getLanguageToolPath());
+                const libsDir = path.join(langToolDir, '..', 'LanguageTool-6.0', 'libs');
+                const serverJar = path.join(langToolDir, '..', 'LanguageTool-6.0', 'languagetool-server.jar');
+
+                console.log('SoftCatalà: Usando servidor JAR:', serverJar);
+                console.log('SoftCatalà: Con libs en:', libsDir);
+                console.log('SoftCatalà: Sistema operativo:', process.platform);
+
+                // Construir el classpath correctamente según el SO
+                const isWindows = process.platform === 'win32';
+                const classpathSeparator = isWindows ? ';' : ':';
+                const libsPattern = isWindows 
+                    ? `${libsDir}\\*`  // Windows usa backslash
+                    : `${libsDir}/*`;  // Unix usa forward slash
+                
+                const classpath = `${serverJar}${classpathSeparator}${libsPattern}`;
+                console.log('SoftCatalà: Classpath:', classpath);
+
+                // Iniciar el servidor LanguageTool con classpath completo
+                // El servidor JAR es solo un wrapper, necesita todas las librerías en libs/
                 this.serverProcess = spawn(javaPath, [
                     '-cp',
-                    this.getLanguageToolPath(),
+                    classpath,
                     'org.languagetool.server.HTTPServer',
                     '--port', '8081',
                     '--allow-origin', '*'
@@ -115,6 +164,17 @@ export class LocalLanguageToolServer {
                     detached: false,
                     stdio: 'pipe'
                 });
+
+                let errorOutput = '';
+                if (this.serverProcess.stderr) {
+                    this.serverProcess.stderr.on('data', (data) => {
+                        const output = data.toString();
+                        errorOutput += output;
+                        if (output.includes('Exception') || output.includes('Error')) {
+                            console.error('SoftCatalà: Error del servidor LanguageTool:', output);
+                        }
+                    });
+                }
 
                 this.serverProcess.on('error', (error) => {
                     reject(new Error(`Error al iniciar el servidor: ${error.message}`));
@@ -128,11 +188,13 @@ export class LocalLanguageToolServer {
                 this.serverProcess.on('exit', (code) => {
                     clearTimeout(timeout);
                     if (code !== 0 && code !== null) {
-                        reject(new Error(`Servidor LanguageTool va sortir amb codi ${code}`));
+                        reject(new Error(
+                            `Servidor LanguageTool va sortir amb codi ${code}. ${errorOutput ? 'Error: ' + errorOutput : ''}`
+                        ));
                     }
                 });
 
-                // Resolver quan es detecti que està llest
+                // Resolver cuando se detecte que está listo
                 resolve();
             } catch (error) {
                 reject(error);
@@ -141,12 +203,12 @@ export class LocalLanguageToolServer {
     }
 
     private getLanguageToolPath(): string {
-        // Usar la ruta desde LanguageToolDownloader
-        return LanguageToolDownloader.getJarPath(this.extensionPath);
+        // Usar la ruta fija desde LanguageToolHelper
+        return LanguageToolHelper.getServerJarPath(this.extensionPath);
     }
 
     private async waitForServerReady(): Promise<void> {
-        const maxRetries = 30; // 30 intents (30 segons)
+        const maxRetries = 60; // 60 intents (60 segons)
         let retries = 0;
 
         while (retries < maxRetries) {

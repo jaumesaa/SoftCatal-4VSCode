@@ -9,3 +9,10 @@ tsconfig.json
 node_modules/**
 *.vsix
 languagetool/**/*.zip
+languagetool/**/CHANGES.*
+languagetool/**/COPYING.txt
+languagetool/**/README.md
+languagetool/**/testrules.*
+languagetool/**/third-party-licenses
+languagetool/**/*.bat
+languagetool/**/org/

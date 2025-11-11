@@ -173,13 +173,12 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile && npm run download-languagetool",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "lint": "eslint src --ext ts",
-    "package": "vsce package",
-    "download-languagetool": "node scripts/download-languagetool.js"
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",

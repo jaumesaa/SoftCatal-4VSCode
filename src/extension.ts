@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { CatalaChecker } from './checker';
 import { CatalaCodeActionProvider } from './codeActionProvider';
 import { ErrorsPanelProvider, PanelError } from './errorsPanel';
-import { LanguageToolDownloader } from './languageToolDownloader';
+import { LanguageToolHelper } from './languageToolHelper';
 
 let checker: CatalaChecker | undefined;
 let errorsPanelProvider: ErrorsPanelProvider | undefined;
@@ -11,16 +11,17 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('Extensió Català - SoftCatalà activada');
 
     // Restaurar el mode del servidor de l'última sessió
-    const lastServerMode = context.globalState.get<string>('lastServerMode');
-    if (lastServerMode) {
-        const config = vscode.workspace.getConfiguration('catala');
-        config.update('serverMode', lastServerMode, vscode.ConfigurationTarget.Global);
-    }
+    // Si no hi ha mode guardat, usar 'softcatala' com a defecte (online)
+    const lastServerMode = context.globalState.get<string>('lastServerMode') || 'softcatala';
+    const config = vscode.workspace.getConfiguration('catala');
+    config.update('serverMode', lastServerMode, vscode.ConfigurationTarget.Global);
 
-    // Descarregar LanguageTool si no està descarregat (en background)
-    LanguageToolDownloader.ensureDownloaded(context.extensionPath).catch((error) => {
-        console.warn('SoftCatalà: Error descarregant LanguageTool (continuant sense offline):', error);
-    });
+    // Verificar que LanguageTool está disponible (incrustado en la extensión)
+    if (!LanguageToolHelper.isAvailable(context.extensionPath)) {
+        vscode.window.showErrorMessage(
+            'Error: LanguageTool no se encuentra en la extensión. Por favor, reinstala la extensión.'
+        );
+    }
 
     // Crear el WebView Panel per mostrar errors
     errorsPanelProvider = new ErrorsPanelProvider(
@@ -124,7 +125,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Crear el comprovador
-    checker = new CatalaChecker(context.extensionPath, errorsPanelProvider);
+    checker = new CatalaChecker(context.globalStoragePath, errorsPanelProvider);
 
     // Registrar el CodeActionProvider per a les correccions ràpides
     const codeActionProvider = vscode.languages.registerCodeActionsProvider(

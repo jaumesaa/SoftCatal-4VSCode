@@ -10,18 +10,76 @@ export class LanguageToolDownloader {
     private static readonly JAR_NAME = 'languagetool-server.jar';
 
     /**
-     * Detecta si LanguageTool está descargado
+     * Detecta si LanguageTool está descargado y es válido
      */
     public static isDownloaded(extensionPath: string): boolean {
-        const jarPath = this.getJarPath(extensionPath);
-        return fs.existsSync(jarPath);
+        // extensionPath aquí es context.globalStoragePath (ruta de almacenamiento persistente)
+        const outputDir = path.join(extensionPath, 'languagetool');
+        
+        console.log('SoftCatalà: Verificando si LanguageTool está descargado en:', outputDir);
+        
+        // Verificar que existe la carpeta languagetool
+        if (!fs.existsSync(outputDir)) {
+            console.log('SoftCatalà: ❌ Carpeta languagetool no existe');
+            return false;
+        }
+
+        // Verificar que existe la carpeta LanguageTool-X.X
+        try {
+            const entries = fs.readdirSync(outputDir);
+            console.log('SoftCatalà: Contenido de carpeta languagetool:', entries);
+            
+            const extracted = entries.find(e => e.startsWith('LanguageTool-'));
+            
+            if (!extracted) {
+                console.log('SoftCatalà: ❌ No se encontró carpeta LanguageTool extraída');
+                return false;
+            }
+
+            const extractedPath = path.join(outputDir, extracted);
+            const libsPath = path.join(extractedPath, 'libs');
+            const serverJarPath = path.join(extractedPath, 'languagetool-server.jar');
+
+            console.log('SoftCatalà: Verificando estructura en:', extractedPath);
+            console.log('SoftCatalà:   - serverJarPath existe:', fs.existsSync(serverJarPath));
+            console.log('SoftCatalà:   - libsPath existe:', fs.existsSync(libsPath));
+
+            // Verificar que existen ambos
+            if (!fs.existsSync(libsPath) || !fs.existsSync(serverJarPath)) {
+                console.log('SoftCatalà: ❌ Carpeta LanguageTool incompleta (falta libs o JAR)');
+                return false;
+            }
+
+            // Verificar que hay archivos en libs
+            const libsEntries = fs.readdirSync(libsPath);
+            console.log(`SoftCatalà: Librerías encontradas: ${libsEntries.length}`);
+
+            if (libsEntries.length === 0) {
+                console.log('SoftCatalà: ❌ Carpeta libs vacía');
+                return false;
+            }
+
+            // Verificar que existe slf4j
+            const hasSlf4j = libsEntries.some(f => f.includes('slf4j'));
+            if (!hasSlf4j) {
+                console.log('SoftCatalà: ❌ No se encontró slf4j en libs (descarga corrupta)');
+                return false;
+            }
+
+            console.log('SoftCatalà: ✅ LanguageTool válido y completo - NO necesita descargar');
+            return true;
+        } catch (error) {
+            console.error('SoftCatalà: Error verificando LanguageTool:', error);
+            return false;
+        }
     }
 
     /**
      * Obté la ruta al JAR
      */
     public static getJarPath(extensionPath: string): string {
-        return path.join(extensionPath, 'languagetool', this.JAR_NAME);
+        // Retorna la ruta correcta: globalStoragePath/languagetool/LanguageTool-6.0/languagetool-server.jar
+        return path.join(extensionPath, 'languagetool', 'LanguageTool-6.0', this.JAR_NAME);
     }
 
     /**
@@ -29,11 +87,11 @@ export class LanguageToolDownloader {
      */
     public static async ensureDownloaded(extensionPath: string): Promise<void> {
         if (this.isDownloaded(extensionPath)) {
-            console.log('SoftCatalà: LanguageTool ja està descarregat');
+            console.log('SoftCatalà: ✅ LanguageTool ja està descarregat - SALTANT descàrrega');
             return;
         }
 
-        console.log('SoftCatalà: Detectant que LanguageTool no està descarregat. Iniciant descàrrega...');
+        console.log('SoftCatalà: ⬇️ Detectant que LanguageTool no està descarregat. Iniciant descàrrega...');
 
         // Mostrar notificació al usuari
         const progress = await vscode.window.withProgress(
@@ -90,6 +148,8 @@ export class LanguageToolDownloader {
         }
 
         try {
+            console.log('SoftCatalà: Descargando LanguageTool desde ' + this.DOWNLOAD_URL);
+            
             // Descarregar LanguageTool
             await this.downloadFile(this.DOWNLOAD_URL, zipFile, onProgress, cancellationToken);
 
@@ -105,24 +165,27 @@ export class LanguageToolDownloader {
 
             onProgress(20); // 20% per extracció
 
-            // Buscar i copiar el JAR
+            // Validar que la estructura es correcta
             const jarPath = this.findAndCopyJar(outputDir);
 
             if (!jarPath) {
-                throw new Error('No s\'ha trobat languagetool-server.jar dins del ZIP');
+                throw new Error('Estructura de LanguageTool descarregada es incorrecta o incompleta');
             }
 
             onProgress(30); // 30% completat
 
-            // Netejar arxius temporals
+            // Netejar arxius temporals (el ZIP)
             this.cleanupTemporaryFiles(outputDir);
 
-            console.log('SoftCatalà: LanguageTool descarregat correctament a ' + jarPath);
+            console.log('SoftCatalà: LanguageTool descarregat correctament');
         } catch (error) {
+            console.error('SoftCatalà: Error en la descarga/extracció:', error);
+            
             // Netejar en cas d'error
             if (fs.existsSync(zipFile)) {
                 try {
                     fs.unlinkSync(zipFile);
+                    console.log('SoftCatalà: Archivo ZIP parcial eliminado');
                 } catch (e) {
                     // Ignorar
                 }
@@ -149,10 +212,18 @@ export class LanguageToolDownloader {
                 method: 'GET',
                 url: url,
                 responseType: 'stream',
-                timeout: 300000 // 5 minuts timeout
+                timeout: 600000 // 10 minuts timeout (más para descargas lentas)
             })
                 .then((response) => {
                     const totalSize = parseInt(response.headers['content-length'], 10) || 0;
+                    console.log(`SoftCatalà: Tamaño a descargar: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+                    
+                    // Validar que el tamaño es razonable (mínimo 100MB para LanguageTool 6.0)
+                    if (totalSize < 100 * 1024 * 1024) {
+                        reject(new Error(`Tamaño de descarga sospechoso: ${(totalSize / 1024 / 1024).toFixed(2)} MB (esperado >100MB)`));
+                        return;
+                    }
+                    
                     const file = fs.createWriteStream(outputPath);
                     let downloadedSize = 0;
 
@@ -160,10 +231,12 @@ export class LanguageToolDownloader {
                         downloadedSize += chunk.length;
                         const percent = totalSize > 0 ? Math.round((downloadedSize / totalSize) * 80) : 0;
 
-                        if (percent > lastProgress) {
-                            onProgress(percent);
+                        if (percent > lastProgress && percent % 10 === 0) {
+                            console.log(`SoftCatalà: Descarga ${percent}%...`);
                             lastProgress = percent;
                         }
+                        
+                        onProgress(percent);
                     });
 
                     response.data.pipe(file);
@@ -171,7 +244,20 @@ export class LanguageToolDownloader {
                     file.on('finish', () => {
                         file.close();
                         cancelListener.dispose();
-                        resolve();
+                        
+                        // Verificar que el archivo descargado tiene el tamaño correcto
+                        try {
+                            const stats = fs.statSync(outputPath);
+                            if (stats.size !== totalSize) {
+                                console.error(`SoftCatalà: Error de descarga - tamaño incorrecto. Esperado: ${totalSize}, Obtenido: ${stats.size}`);
+                                reject(new Error(`Descarga incompleta. Tamaño esperado: ${totalSize}, obtenido: ${stats.size}`));
+                                return;
+                            }
+                            console.log('SoftCatalà: Descarga completada correctamente');
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
                     });
 
                     file.on('error', (error) => {
@@ -189,7 +275,7 @@ export class LanguageToolDownloader {
                     if (error.code === 'ECONNABORTED') {
                         reject(new Error('Timeout en la descàrrega (connexió molt lenta)'));
                     } else if (error.response?.status === 404) {
-                        reject(new Error('Versió de LanguageTool no disponible'));
+                        reject(new Error('Versió de LanguageTool no disponible (404)'));
                     } else {
                         reject(new Error(`Error de descàrrega: ${error.message}`));
                     }
@@ -203,17 +289,22 @@ export class LanguageToolDownloader {
                 // Detectar SO i usar comando apropiat
                 const isWindows = process.platform === 'win32';
 
+                console.log(`SoftCatalà: Descomprimiendo en ${isWindows ? 'Windows' : 'Unix-like'} desde: ${zipFile}`);
+
                 if (isWindows) {
-                    // Usar PowerShell en Windows
+                    // Usar PowerShell en Windows con Force para overwrite
                     execSync(
-                        `powershell -Command "Expand-Archive -Path '${zipFile}' -DestinationPath '${outputDir}' -Force"`,
-                        { stdio: 'pipe' }
+                        `powershell -NoProfile -Command "Expand-Archive -Path '${zipFile}' -DestinationPath '${outputDir}' -Force"`,
+                        { stdio: 'pipe', shell: 'powershell.exe' }
                     );
                 } else {
-                    // Usar unzip en macOS/Linux
-                    execSync(`unzip -q "${zipFile}" -d "${outputDir}"`, { stdio: 'pipe' });
+                    // Usar unzip en macOS/Linux con -o para overwrite sin preguntar
+                    // -q: quiet mode (sin output verbose)
+                    // -o: overwrite existing files sin pedir confirmación
+                    execSync(`unzip -q -o "${zipFile}" -d "${outputDir}"`, { stdio: 'pipe' });
                 }
 
+                console.log('SoftCatalà: Descompresión completada');
                 resolve();
             } catch (error) {
                 reject(new Error(`Error al descomprimir: ${(error as Error).message}`));
@@ -224,25 +315,49 @@ export class LanguageToolDownloader {
     private static findAndCopyJar(outputDir: string): string | null {
         try {
             const entries = fs.readdirSync(outputDir);
+            console.log('SoftCatalà: Contenido de la carpeta de descarga:', entries);
+            
+            // Buscar la carpeta LanguageTool-X.X
             const extracted = entries.find(e => e.startsWith('LanguageTool-'));
 
             if (!extracted) {
+                console.error('SoftCatalà: No se encontró carpeta LanguageTool- en la descarga');
                 return null;
             }
 
             const extractedPath = path.join(outputDir, extracted);
-            const jarPath = path.join(extractedPath, this.JAR_NAME);
+            console.log('SoftCatalà: Carpeta extraída:', extractedPath);
+            
+            // Listar contenido de la carpeta extraída
+            const extractedEntries = fs.readdirSync(extractedPath);
+            console.log('SoftCatalà: Contenido de carpeta extraída:', extractedEntries);
 
-            if (!fs.existsSync(jarPath)) {
+            // Verificar que existen los componentes necesarios
+            const hasServerJar = extractedEntries.includes('languagetool-server.jar');
+            const hasLibsFolder = extractedEntries.includes('libs');
+            
+            if (!hasServerJar || !hasLibsFolder) {
+                console.error(`SoftCatalà: Estructura incompleta. Tiene JAR: ${hasServerJar}, Tiene libs: ${hasLibsFolder}`);
+                console.error('SoftCatalà: Archivos encontrados:', extractedEntries);
                 return null;
             }
 
-            const destPath = path.join(outputDir, this.JAR_NAME);
-            fs.copyFileSync(jarPath, destPath);
+            // Verificar que hay archivos en libs
+            const libsPath = path.join(extractedPath, 'libs');
+            const libsEntries = fs.readdirSync(libsPath);
+            console.log(`SoftCatalà: Librerías encontradas: ${libsEntries.length}`);
 
-            return destPath;
+            // Verificar que existe slf4j (que era el error anterior)
+            const hasSlf4j = libsEntries.some(f => f.includes('slf4j'));
+            if (!hasSlf4j) {
+                console.error('SoftCatalà: No se encontró slf4j en la carpeta libs');
+                return null;
+            }
+
+            console.log('SoftCatalà: Estructura de LanguageTool validada correctamente');
+            return extractedPath; // Retornar la ruta de la carpeta extraída
         } catch (error) {
-            console.error('Error buscant JAR:', error);
+            console.error('Error buscando y validando estructura:', error);
             return null;
         }
     }
@@ -254,13 +369,19 @@ export class LanguageToolDownloader {
             for (const entry of entries) {
                 const fullPath = path.join(outputDir, entry);
 
-                // Eliminar ZIP
-                if (entry === 'languagetool.zip') {
-                    fs.unlinkSync(fullPath);
-                }
-                // Eliminar carpeta extraída
-                else if (entry.startsWith('LanguageTool-')) {
-                    this.removeDirectory(fullPath);
+                try {
+                    // Eliminar ZIP
+                    if (entry === 'languagetool.zip') {
+                        console.log('SoftCatalà: Eliminando archivo ZIP temporal...');
+                        fs.unlinkSync(fullPath);
+                    }
+                    // Eliminar carpeta extraída (pero solo si no es el JAR)
+                    else if (entry.startsWith('LanguageTool-') && fs.lstatSync(fullPath).isDirectory()) {
+                        console.log(`SoftCatalà: Eliminando carpeta temporal ${entry}...`);
+                        this.removeDirectory(fullPath);
+                    }
+                } catch (error) {
+                    console.warn(`SoftCatalà: Error eliminando ${entry}:`, error);
                 }
             }
         } catch (error) {

@@ -107,7 +107,13 @@ export class LanguageToolService {
                     await this.localServer.start();
                 } catch (error) {
                     console.error('SoftCatalà: Error al iniciar servidor local:', error);
-                    throw error;
+                    // FALLBACK AUTOMÀTIC: Si el servidor local falla, intentar mode online
+                    console.warn('SoftCatalà: Canviant a mode online automàticament per error al servidor local');
+                    this.serverMode = 'softcatala';
+                    this.baseUrl = 'https://api.softcatala.org/corrector/v2';
+                    this.autoFallbackAttempted = true;
+                    // Reintentar amb el mode online
+                    return this.check(text);
                 }
             }
 
