@@ -34,6 +34,49 @@ export function activate(context: vscode.ExtensionContext) {
         (error) => {
             // Anar a l'error
             vscode.window.showTextDocument(error.uri, { selection: error.range });
+        },
+        (verbForms) => {
+            // Canviar formes verbals
+            const config = vscode.workspace.getConfiguration('catala');
+            config.update('verbForms', verbForms, vscode.ConfigurationTarget.Global);
+            
+            // Re-chequjar el document actual amb la nova configuració
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                checker?.updateConfiguration();
+                checker?.checkDocument(editor.document);
+            }
+        },
+        (disabled) => {
+            // Deshabilitar capitalització
+            checker?.setDisableCapitalizationRules(disabled);
+            errorsPanelProvider?.setDisableCapitalizationRules(disabled);
+            
+            // Re-chequjar el document actual amb la nova configuració
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                checker?.checkDocument(editor.document);
+            }
+        },
+        () => {
+            // Quan s'obri el panell: comprovar el document actual
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                checker?.checkDocument(editor.document);
+            }
+        },
+        () => {
+            // Canviar a mode offline
+            const config = vscode.workspace.getConfiguration('catala');
+            config.update('serverMode', 'local', vscode.ConfigurationTarget.Global);
+            vscode.window.showInformationMessage('Mode offline activat. L\'extensió usarà el servidor LanguageTool local.');
+            
+            // Re-chequjar el document actual
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                checker?.updateConfiguration();
+                checker?.checkDocument(editor.document);
+            }
         }
     );
 

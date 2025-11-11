@@ -11,7 +11,11 @@ export class CatalaChecker {
     private enabledLanguages: string[];
     private codeLanguages: string[];
     private checkCommentsOnly: boolean;
+    private verbForms: 'central' | 'valenciana' | 'balear';
     private errorsPanelProvider?: ErrorsPanelProvider;
+    private lastErrorShown: Map<string, number> = new Map(); // Per evitar popups repetits
+    private readonly ERROR_POPUP_COOLDOWN = 30000; // 30 segons entre popups
+    private disableCapitalizationRules: boolean = false; // Flag per deshabilitar majúscules
 
     constructor(errorsPanelProvider?: ErrorsPanelProvider) {
         this.diagnosticCollection = vscode.languages.createDiagnosticCollection('catala');
@@ -19,6 +23,8 @@ export class CatalaChecker {
         this.enabledLanguages = this.getEnabledLanguages();
         this.codeLanguages = this.getCodeLanguages();
         this.checkCommentsOnly = this.getCheckCommentsOnly();
+        this.verbForms = this.getVerbForms();
+        this.disableCapitalizationRules = this.getDisableCapitalizationRules();
         this.errorsPanelProvider = errorsPanelProvider;
     }
 
@@ -37,11 +43,33 @@ export class CatalaChecker {
         return config.get('checkCommentsOnly', true);
     }
 
+    private getVerbForms(): 'central' | 'valenciana' | 'balear' {
+        const config = vscode.workspace.getConfiguration('catala');
+        return config.get('verbForms', 'central') as 'central' | 'valenciana' | 'balear';
+    }
+
     public updateConfiguration() {
         this.enabledLanguages = this.getEnabledLanguages();
         this.codeLanguages = this.getCodeLanguages();
         this.checkCommentsOnly = this.getCheckCommentsOnly();
+        this.verbForms = this.getVerbForms();
+        this.disableCapitalizationRules = this.getDisableCapitalizationRules();
         this.languageToolService.updateConfiguration();
+    }
+
+    private getDisableCapitalizationRules(): boolean {
+        const config = vscode.workspace.getConfiguration('catala');
+        return config.get('disableCapitalization', false);
+    }
+
+    public setDisableCapitalizationRules(disable: boolean): void {
+        this.disableCapitalizationRules = disable;
+        const config = vscode.workspace.getConfiguration('catala');
+        config.update('disableCapitalization', disable, vscode.ConfigurationTarget.Global);
+    }
+
+    public getDisableCapitalizationRulesState(): boolean {
+        return this.disableCapitalizationRules;
     }
 
     private shouldCheckDocument(document: vscode.TextDocument): boolean {
@@ -101,6 +129,7 @@ export class CatalaChecker {
 
                 if (comments.length === 0) {
                     this.diagnosticCollection.set(document.uri, []);
+                    this.updatePanelStatus();
                     return;
                 }
 
@@ -109,6 +138,11 @@ export class CatalaChecker {
                     const matches = await this.languageToolService.check(comment.text);
 
                     for (const match of matches) {
+                        // Filtrar si la regla està deshabilitada
+                        if (this.disableCapitalizationRules && match.rule.id === 'UPPERCASE_SENTENCE_START') {
+                            continue;
+                        }
+
                         // Calcular la posició real en el document
                         const startOffset = comment.offset + this.findCommentTextOffset(comment.text, document.getText().substring(comment.offset));
                         const matchStartPos = document.positionAt(startOffset + match.offset);
@@ -125,12 +159,18 @@ export class CatalaChecker {
                 const text = document.getText();
                 if (!text.trim()) {
                     this.diagnosticCollection.set(document.uri, []);
+                    this.updatePanelStatus();
                     return;
                 }
 
                 const matches = await this.languageToolService.check(text);
 
                 for (const match of matches) {
+                    // Filtrar si la regla està deshabilitada
+                    if (this.disableCapitalizationRules && match.rule.id === 'UPPERCASE_SENTENCE_START') {
+                        continue;
+                    }
+
                     const range = new vscode.Range(
                         document.positionAt(match.offset),
                         document.positionAt(match.offset + match.length)
@@ -161,11 +201,45 @@ export class CatalaChecker {
                 });
                 this.errorsPanelProvider.setErrors(panelErrors);
             }
+
+            // Actualitzar l'estat de connexió al panell
+            this.updatePanelStatus();
         } catch (error) {
-            vscode.window.showErrorMessage(
-                `Error comprovant el document: ${error instanceof Error ? error.message : String(error)}`
-            );
+            // No mostrar popup cada vegada - usar throttle
+            this.handleCheckError(error, document.uri);
+            
+            // Actualitzar l'estat de connexió al panell
+            this.updatePanelStatus();
         }
+    }
+
+    private updatePanelStatus() {
+        if (this.errorsPanelProvider) {
+            const status = this.languageToolService.getConnectionStatus();
+            this.errorsPanelProvider.setConnectionStatus(status);
+        }
+    }
+
+    private handleCheckError(error: any, uri: vscode.Uri) {
+        const errorKey = `${uri.toString()}_${error instanceof Error ? error.message : String(error)}`;
+        const lastShown = this.lastErrorShown.get(errorKey) || 0;
+        const now = Date.now();
+
+        // Si fa poc que hem mostrat aquest error, no el mostrem de nou
+        if (now - lastShown < this.ERROR_POPUP_COOLDOWN) {
+            console.warn('SoftCatalà Error (silenciat):', error instanceof Error ? error.message : String(error));
+            return;
+        }
+
+        this.lastErrorShown.set(errorKey, now);
+
+        const message = error instanceof Error ? error.message : String(error);
+        
+        // No mostrar notificacions d'error - l'indicador de connexió al panell ja en parla
+        console.warn('SoftCatalà Error:', message);
+        
+        // L'indicador de connexió al panell ja mostra l'estat
+        this.updatePanelStatus();
     }
 
     public removeDiagnostic(uri: vscode.Uri, error: PanelError) {

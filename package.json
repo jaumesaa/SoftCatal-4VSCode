@@ -2,7 +2,7 @@
   "name": "catala-softcatala",
   "displayName": "Català - Corrector SoftCatalà",
   "description": "Corrector ortogràfic i gramatical català amb SoftCatalà i LanguageTool",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "mainlab",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -70,6 +70,21 @@
           ],
           "description": "Variant del català"
         },
+        "catala.verbForms": {
+          "type": "string",
+          "default": "central",
+          "enum": [
+            "central",
+            "valenciana",
+            "balear"
+          ],
+          "enumDescriptions": [
+            "Formes verbals centrals (estàndard)",
+            "Formes verbals valencianes",
+            "Formes verbals balears"
+          ],
+          "description": "Variant de formes verbals per a l'API de SoftCatalà"
+        },
         "catala.autoCheck": {
           "type": "boolean",
           "default": true,
@@ -120,6 +135,11 @@
             "tsx"
           ],
           "description": "Llenguatges de programació on aplicar la correcció de comentaris"
+        },
+        "catala.disableCapitalization": {
+          "type": "boolean",
+          "default": false,
+          "description": "Deshabilita les correccions de majúscules de principi de frase (UPPERCASE_SENTENCE_START)"
         }
       }
     },

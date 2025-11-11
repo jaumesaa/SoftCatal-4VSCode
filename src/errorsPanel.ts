@@ -10,18 +10,36 @@ export interface PanelError {
     range: vscode.Range;
 }
 
+export interface ConnectionStatus {
+    online: boolean;
+    errorCount: number;
+    nextRetryIn?: number; // Segons fins al proper retry
+    retryCountdown?: number; // Compte enrere en viu
+}
+
 export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'catalaErrorsPanel';
     private _view?: vscode.WebviewView;
     private errors: PanelError[] = [];
     private isLoading: boolean = false;
+    private connectionStatus: ConnectionStatus = { online: true, errorCount: 0 };
+    private countdownInterval?: NodeJS.Timeout;
+    private disableCapitalizationRules: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly onFixError: (error: PanelError, replacement: string) => void,
         private readonly onIgnoreError: (error: PanelError) => void,
-        private readonly onGoToError: (error: PanelError) => void
-    ) {}
+        private readonly onGoToError: (error: PanelError) => void,
+        private readonly onVerbFormsChanged?: (verbForms: 'central' | 'valenciana' | 'balear') => void,
+        private readonly onCapitalizationToggled?: (disabled: boolean) => void,
+        private readonly onPanelOpened?: () => void,
+        private readonly onOfflineMode?: () => void
+    ) {
+        // Inicialitzar la configuració de capitalització
+        const config = vscode.workspace.getConfiguration('catala');
+        this.disableCapitalizationRules = config.get('disableCapitalization', false);
+    }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -36,6 +54,11 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+        // Disparar el callback quan s'obri el panell
+        if (this.onPanelOpened) {
+            this.onPanelOpened();
+        }
 
         // Gestionar missatges del webview
         webviewView.webview.onDidReceiveMessage(data => {
@@ -58,6 +81,21 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                         this.onGoToError(errorToGoTo);
                     }
                     break;
+                case 'verbFormsChanged':
+                    if (this.onVerbFormsChanged) {
+                        this.onVerbFormsChanged(data.verbForms);
+                    }
+                    break;
+                case 'capitalizationToggled':
+                    if (this.onCapitalizationToggled) {
+                        this.onCapitalizationToggled(data.disabled);
+                    }
+                    break;
+                case 'offlineMode':
+                    if (this.onOfflineMode) {
+                        this.onOfflineMode();
+                    }
+                    break;
             }
         });
     }
@@ -73,6 +111,47 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         this._update();
     }
 
+    public setConnectionStatus(status: ConnectionStatus) {
+        this.connectionStatus = status;
+
+        // Si tenim error i temps fins al próxim retry, iniciar countdown
+        if (!status.online && status.errorCount > 0 && status.nextRetryIn !== undefined) {
+            this.connectionStatus.retryCountdown = status.nextRetryIn;
+
+            // Iniciar countdown
+            this.startCountdown();
+        } else {
+            // Aturar countdown si no hi ha errors
+            if (this.countdownInterval) {
+                clearInterval(this.countdownInterval);
+                this.countdownInterval = undefined;
+            }
+        }
+
+        this._update();
+    }
+
+    private startCountdown() {
+        // Aturar countdown anterior si existeix
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+        }
+
+        // Iniciar countdown
+        this.countdownInterval = setInterval(() => {
+            if (this.connectionStatus.retryCountdown && this.connectionStatus.retryCountdown > 0) {
+                this.connectionStatus.retryCountdown--;
+                this._update();
+            } else {
+                // Countdown finalitzat
+                if (this.countdownInterval) {
+                    clearInterval(this.countdownInterval);
+                    this.countdownInterval = undefined;
+                }
+            }
+        }, 1000);
+    }
+
     public removeError(errorId: string) {
         this.errors = this.errors.filter(e => e.id !== errorId);
         this._update();
@@ -84,12 +163,22 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         this._update();
     }
 
+    public setDisableCapitalizationRules(disabled: boolean) {
+        this.disableCapitalizationRules = disabled;
+        this._update();
+    }
+
+    public getDisableCapitalizationRules(): boolean {
+        return this.disableCapitalizationRules;
+    }
+
     private _update() {
         if (this._view) {
             this._view.webview.postMessage({
                 type: 'update',
                 errors: this.errors,
-                isLoading: this.isLoading
+                isLoading: this.isLoading,
+                connectionStatus: this.connectionStatus
             });
         }
     }
@@ -147,6 +236,54 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     font-size: 12px;
                     color: var(--vscode-descriptionForeground);
                     margin-top: 4px;
+                }
+
+                .connection-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 12px;
+                    background-color: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 4px;
+                    margin-top: 12px;
+                    font-size: 11px;
+                }
+
+                .status-indicator {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    flex-shrink: 0;
+                }
+
+                .status-indicator.online {
+                    background-color: #4ec9b0;
+                    box-shadow: 0 0 8px rgba(78, 201, 176, 0.6);
+                }
+
+                .status-indicator.offline {
+                    background-color: #cd5c5c;
+                    box-shadow: 0 0 8px rgba(205, 92, 92, 0.6);
+                }
+
+                .status-indicator.reconnecting {
+                    background-color: #d7ba7d;
+                    animation: pulse 1s infinite;
+                }
+
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                }
+
+                .status-text {
+                    flex: 1;
+                    color: var(--vscode-descriptionForeground);
+                }
+
+                .status-text.offline {
+                    color: #cd5c5c;
                 }
 
                 .loading {
@@ -275,6 +412,25 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     margin-top: 6px;
                 }
 
+                .offline-btn {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-family: var(--vscode-font-family);
+                    transition: all 0.2s;
+                    width: 100%;
+                    margin-top: 8px;
+                }
+
+                .offline-btn:hover {
+                    background-color: var(--vscode-button-hoverBackground);
+                    transform: translateY(-1px);
+                }
+
                 .ignore-btn:hover {
                     background-color: var(--vscode-button-secondaryHoverBackground);
                     border-color: var(--vscode-focusBorder);
@@ -300,6 +456,61 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     color: var(--vscode-descriptionForeground);
                     margin-top: 4px;
                 }
+
+                .settings-section {
+                    background-color: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 6px;
+                    padding: 12px;
+                    margin-top: 16px;
+                }
+
+                .settings-title {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--vscode-foreground);
+                    margin-bottom: 8px;
+                }
+
+                .setting-item {
+                    margin-bottom: 10px;
+                }
+
+                .setting-label {
+                    font-size: 11px;
+                    color: var(--vscode-descriptionForeground);
+                    margin-bottom: 4px;
+                    display: block;
+                }
+
+                select {
+                    width: 100%;
+                    padding: 6px 8px;
+                    background-color: var(--vscode-input-background);
+                    color: var(--vscode-input-foreground);
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-family: var(--vscode-font-family);
+                    cursor: pointer;
+                }
+
+                select:hover {
+                    border-color: var(--vscode-focusBorder);
+                }
+
+                .countdown {
+                    font-size: 11px;
+                    color: var(--vscode-descriptionForeground);
+                    margin-top: 8px;
+                    padding-top: 8px;
+                    border-top: 1px solid var(--vscode-panel-border);
+                }
+
+                .countdown-value {
+                    font-weight: 600;
+                    color: var(--vscode-editorWarning-foreground);
+                }
             </style>
         </head>
         <body>
@@ -309,6 +520,32 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 </div>
                 <div class="title">Corrector Català</div>
                 <div class="subtitle">SoftCatalà</div>
+                <div id="connectionStatus" class="connection-status" style="display: none;">
+                    <div class="status-indicator online" id="statusIndicator"></div>
+                    <div class="status-text" id="statusText">Connectat</div>
+                </div>
+            </div>
+
+            <div id="settings" class="settings-section" style="display: none;">
+                <div class="settings-title">⚙️ Configuració</div>
+                <div class="setting-item">
+                    <label class="setting-label">Formes Verbals:</label>
+                    <select id="verbFormsSelect" onchange="changeVerbForms(this.value)">
+                        <option value="central">Central (Estàndard)</option>
+                        <option value="valenciana">Valenciana</option>
+                        <option value="balear">Balear</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <input type="checkbox" id="disableCapitalizationCheckbox" onchange="toggleCapitalization(this.checked)">
+                    <label class="setting-label" for="disableCapitalizationCheckbox">Deshabilitar majúscules de principi de frase</label>
+                </div>
+                <div id="countdownDiv" class="countdown" style="display: none;">
+                    <div style="margin-bottom: 8px;">
+                        Proper intent en: <span class="countdown-value" id="countdownValue">0</span>s
+                    </div>
+                    <button id="offlineModeBtn" class="offline-btn" onclick="switchToOffline()">Canviar a Mode Offline</button>
+                </div>
             </div>
 
             <div id="content">
@@ -321,14 +558,27 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
             <script>
                 const vscode = acquireVsCodeApi();
 
+                // Inicialitzar el checkbox de capitalització
+                function initializeCapitalizationCheckbox() {
+                    const checkbox = document.getElementById('disableCapitalizationCheckbox');
+                    if (checkbox) {
+                        // Aquí s'inicialitzaria amb el valor de config si es pogués
+                        // Per ara, es deixa unchecked per defecte
+                        checkbox.checked = false;
+                    }
+                }
+
                 window.addEventListener('message', event => {
                     const message = event.data;
                     if (message.type === 'update') {
-                        updateUI(message.errors, message.isLoading);
+                        updateUI(message.errors, message.isLoading, message.connectionStatus);
                     }
                 });
 
-                function updateUI(errors, isLoading) {
+                function updateUI(errors, isLoading, connectionStatus) {
+                    // Actualitzar estat de connexió
+                    updateConnectionStatus(connectionStatus);
+
                     const content = document.getElementById('content');
 
                     if (isLoading) {
@@ -414,6 +664,76 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                         errorId: errorId
                     });
                 }
+
+                function updateConnectionStatus(status) {
+                    const statusDiv = document.getElementById('connectionStatus');
+                    const settingsDiv = document.getElementById('settings');
+                    const indicator = document.getElementById('statusIndicator');
+                    const statusText = document.getElementById('statusText');
+                    const countdownDiv = document.getElementById('countdownDiv');
+                    const countdownValue = document.getElementById('countdownValue');
+
+                    if (!status || status.online) {
+                        // Connectat
+                        statusDiv.style.display = 'none';
+                        settingsDiv.style.display = 'block';
+                        countdownDiv.style.display = 'none';
+                    } else {
+                        // Desconnectat o amb errors
+                        statusDiv.style.display = 'flex';
+                        settingsDiv.style.display = 'block';
+                        
+                        if (status.errorCount > 0 && status.errorCount <= 2) {
+                            // Intent de reconexió
+                            indicator.className = 'status-indicator reconnecting';
+                            statusText.className = 'status-text';
+                            statusText.innerHTML = \`Intentant reconectar... (\${status.errorCount})\`;
+                            countdownDiv.style.display = 'block';
+                        } else if (status.errorCount > 2) {
+                            // Desconnectat
+                            indicator.className = 'status-indicator offline';
+                            statusText.className = 'status-text offline';
+                            statusText.innerHTML = '⚠️ Sense connexió. Usant caché.';
+                            countdownDiv.style.display = 'block';
+                        } else {
+                            // Desconnectat
+                            indicator.className = 'status-indicator offline';
+                            statusText.className = 'status-text offline';
+                            statusText.innerHTML = '⚠️ Desconnectat de la xarxa';
+                            countdownDiv.style.display = 'none';
+                        }
+
+                        // Actualitzar countdown
+                        if (status.retryCountdown !== undefined) {
+                            countdownValue.textContent = status.retryCountdown;
+                        }
+                    }
+                }
+
+                function changeVerbForms(value) {
+                    vscode.postMessage({
+                        type: 'verbFormsChanged',
+                        verbForms: value
+                    });
+                }
+
+                function toggleCapitalization(checked) {
+                    vscode.postMessage({
+                        type: 'capitalizationToggled',
+                        disabled: checked
+                    });
+                }
+
+                function switchToOffline() {
+                    vscode.postMessage({
+                        type: 'offlineMode'
+                    });
+                }
+
+                // Inicialitzar el panel quan es carrega
+                document.addEventListener('DOMContentLoaded', () => {
+                    initializeCapitalizationCheckbox();
+                });
             </script>
         </body>
         </html>`;

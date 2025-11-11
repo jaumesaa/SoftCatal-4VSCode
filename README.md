@@ -46,6 +46,16 @@ L'extensió funciona directament després de la instal·lació amb la configurac
   - `ca-ES` (per defecte): Català general
   - `ca-ES-valencia`: Valencià
 
+- **Formes verbals** (`catala.verbForms`):
+  - `central` (per defecte): Formes verbals centrals (estàndard)
+  - `valenciana`: Formes verbals valencianes
+  - `balear`: Formes verbals balears
+  - ⚠️ Només funciona en mode SoftCatalà (online)
+
+- **Deshabilitar majúscules de principi de frase** (`catala.disableCapitalization`):
+  - `false` (per defecte): Mostra errors de majúscules de principi de frase
+  - `true`: Deshabilita els errors de capitalització (UPPERCASE_SENTENCE_START)
+
 - **Comprovació automàtica** (`catala.autoCheck`):
   - `true` (per defecte): Comprova mentre escrius
   - `false`: Només comprova manualment
@@ -67,6 +77,7 @@ L'extensió funciona directament després de la instal·lació amb la configurac
   "catala.serverMode": "softcatala",
   "catala.checkCommentsOnly": true,
   "catala.language": "ca-ES",
+  "catala.verbForms": "central",
   "catala.autoCheck": true,
   "catala.checkDelay": 500
 }
@@ -79,6 +90,34 @@ L'extensió funciona directament després de la instal·lació amb la configurac
 L'extensió comprovarà automàticament el text mentre escrius:
 - En fitxers de codi: només els comentaris
 - En fitxers de text: tot el document
+
+### Panell Lateral
+
+L'extensió mostra un panell lateral "Corrector Català" a VSCode amb les següents funcionalitats:
+
+**Activació Automàtica:**
+- Quan obris el panell lateral, l'extensió **verifica automàticament tot el document obert**
+- Mostra un missatge de "Comprovant..." mentre escaneja tots els comentaris
+- Un cop finalitzada la verificació, mostra tots els errors detectats
+
+**Secció de Configuració:**
+- Dropdown per canviar les formes verbals (Central, Valenciana, Balear)
+- Checkbox per deshabilitar les correccions de majúscules de principi de frase
+- Els canvis de configuració triguen una re-verificació automàtica del document
+
+**Secció d'Errors:**
+- Llista de tots els errors detectats
+- Número de línia per a cada error
+- Missatge d'error en català
+- Suggestions de correccions amb botons per aplicar-les
+- Butó per anar a la posició de l'error
+
+**Indicador de Connexió:**
+- 🟢 Verde: Connexió activa
+- 🟡 Taronja: Intent de reconexió (amb contador de reintentos)
+- 🔴 Roig: Sense connexió
+  - Mostra caché anterior si disponible
+  - Botó "Canviar a Mode Offline" per activar mode local sense errors
 
 ### Comandes disponibles
 
@@ -96,6 +135,24 @@ function saludar() {
     return "Hola món!";
 }
 ```
+
+## Formes Verbals
+
+L'extensió suporta les tres principals variants de formes verbals en català:
+
+- **Central**: Formes verbals estàndard (IEC) - es recomana per a ús general
+- **Valenciana**: Formes verbals segons les normes de l'AVL (Acadèmia Valenciana de la Llengua)
+- **Balear**: Formes verbals segons les normes de les Illes Balears
+
+Pots canviar la variant a la configuració:
+
+```json
+{
+  "catala.verbForms": "central"  // o "valenciana" o "balear"
+}
+```
+
+⚠️ **Nota**: Aquesta opció només funciona en mode SoftCatalà (online). En mode local (LanguageTool), sempre utilitza formes centrals.
 
 ## Servidor LanguageTool local
 
