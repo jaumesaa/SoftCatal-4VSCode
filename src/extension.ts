@@ -49,6 +49,9 @@ export function activate(context: vscode.ExtensionContext) {
         },
         (disabled) => {
             // Deshabilitar capitalització
+            const config = vscode.workspace.getConfiguration('catala');
+            config.update('disableCapitalization', disabled, vscode.ConfigurationTarget.Global);
+            
             checker?.setDisableCapitalizationRules(disabled);
             errorsPanelProvider?.setDisableCapitalizationRules(disabled);
             

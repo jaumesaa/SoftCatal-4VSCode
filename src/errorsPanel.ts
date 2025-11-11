@@ -60,6 +60,17 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
             this.onPanelOpened();
         }
 
+        // Enviar configuració inicial al webview
+        const config = vscode.workspace.getConfiguration('catala');
+        const verbForms = config.get('verbForms', 'central');
+        const disableCapitalization = config.get('disableCapitalization', false);
+        
+        webviewView.webview.postMessage({
+            type: 'init',
+            verbForms: verbForms,
+            disableCapitalization: disableCapitalization
+        });
+
         // Gestionar missatges del webview
         webviewView.webview.onDidReceiveMessage(data => {
             switch (data.type) {
@@ -572,6 +583,18 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     const message = event.data;
                     if (message.type === 'update') {
                         updateUI(message.errors, message.isLoading, message.connectionStatus);
+                    } else if (message.type === 'init') {
+                        // Inicialitzar configuració guardada
+                        const verbFormsSelect = document.getElementById('verbFormsSelect');
+                        const disableCapitalizationCheckbox = document.getElementById('disableCapitalizationCheckbox');
+                        
+                        if (verbFormsSelect && message.verbForms) {
+                            verbFormsSelect.value = message.verbForms;
+                        }
+                        
+                        if (disableCapitalizationCheckbox && message.disableCapitalization !== undefined) {
+                            disableCapitalizationCheckbox.checked = message.disableCapitalization;
+                        }
                     }
                 });
 
