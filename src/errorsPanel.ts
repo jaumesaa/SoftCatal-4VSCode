@@ -124,6 +124,16 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 case 'extensionActivated':
+                    // Si se proporciona un modo, activar el callback correspondiente
+                    if (data.mode === 'online') {
+                        if (this.onOnlineMode) {
+                            this.onOnlineMode();
+                        }
+                    } else if (data.mode === 'offline') {
+                        if (this.onOfflineMode) {
+                            this.onOfflineMode();
+                        }
+                    }
                     this.setExtensionActive(true);
                     if (this.onPanelOpened) {
                         this.onPanelOpened();
@@ -644,8 +654,9 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     <div class="status-indicator online" id="statusIndicator"></div>
                     <div class="status-text" id="statusText">Connectat</div>
                 </div>
-                <div id="activationContainer" class="activation-container" style="display: flex;">
-                    <button id="activateBtn" class="activation-btn" onclick="activateExtension()">▶ ACTIVAR</button>
+                <div id="activationContainer" class="activation-container" style="display: flex; gap: 8px;">
+                    <button id="onlineBtn" class="activation-btn online-btn" onclick="activateOnlineMode()">🌐 ONLINE (SoftCatalà)<br>✓ Recomanat</button>
+                    <button id="offlineBtn" class="activation-btn offline-btn" onclick="activateOfflineMode()">📦 OFFLINE (Local)</button>
                     <button id="pauseBtn" class="activation-btn pause" onclick="pauseExtension()" style="display: none;">⏸ PAUSAR</button>
                 </div>
             </div>
@@ -889,27 +900,37 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 }
 
                 function updateActivationButtons(isActive) {
-                    const activationContainer = document.getElementById('activationContainer');
-                    const activateBtn = document.getElementById('activateBtn');
+                    const onlineBtn = document.getElementById('onlineBtn');
+                    const offlineBtn = document.getElementById('offlineBtn');
                     const pauseBtn = document.getElementById('pauseBtn');
                     const settings = document.getElementById('settings');
 
                     if (isActive) {
-                        // Extensión activa
-                        if (activateBtn) activateBtn.style.display = 'none';
+                        // Extensión activa: mostrar botón PAUSAR, ocultar ONLINE/OFFLINE
+                        if (onlineBtn) onlineBtn.style.display = 'none';
+                        if (offlineBtn) offlineBtn.style.display = 'none';
                         if (pauseBtn) pauseBtn.style.display = 'block';
                         if (settings) settings.style.display = 'block';
                     } else {
-                        // Extensión pausada
-                        if (activateBtn) activateBtn.style.display = 'block';
+                        // Extensión pausada: mostrar ONLINE/OFFLINE, ocultar PAUSAR
+                        if (onlineBtn) onlineBtn.style.display = 'block';
+                        if (offlineBtn) offlineBtn.style.display = 'block';
                         if (pauseBtn) pauseBtn.style.display = 'none';
                         if (settings) settings.style.display = 'none';
                     }
                 }
 
-                function activateExtension() {
+                function activateOnlineMode() {
                     vscode.postMessage({
-                        type: 'extensionActivated'
+                        type: 'extensionActivated',
+                        mode: 'online'
+                    });
+                }
+
+                function activateOfflineMode() {
+                    vscode.postMessage({
+                        type: 'extensionActivated',
+                        mode: 'offline'
                     });
                 }
 
