@@ -203,6 +203,11 @@ MIT License - Consulta el fitxer [LICENSE](LICENSE) per a més detalls.
 - [SoftCatalà](https://www.softcatala.org/)
 - [Reportar un problema](https://github.com/your-username/catala-softcatala/issues)
 
+- [GitHub Repository](https://github.com/jaumesaa/SoftCatal-4VSCode)
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=mainlab.catala-softcatala)
+- [SoftCatalà](https://www.softcatala.org/)
+- [Reportar un problema](https://github.com/jaumesaa/SoftCatal-4VSCode/issues)
+
 ---
 
 Fet amb ❤️ per a la comunitat catalana

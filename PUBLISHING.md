@@ -28,11 +28,11 @@ Obre `package.json` i actualitza aquests camps:
 
 ```json
 {
-  "publisher": "el-teu-publisher-id",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/el-teu-usuari/catala-softcatala"
-  }
+   "publisher": "mainlab",
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/jaumesaa/SoftCatal-4VSCode"
+   }
 }
 ```
 
@@ -56,7 +56,7 @@ Guarda l'icó com `images/icon.png` (ja està configurat al package.json).
 git init
 git add .
 git commit -m "Initial commit"
-git remote add origin https://github.com/el-teu-usuari/catala-softcatala.git
+git remote add origin https://github.com/jaumesaa/SoftCatal-4VSCode.git
 git push -u origin main
 ```
 
@@ -83,7 +83,7 @@ git push -u origin main
 npm install -g @vscode/vsce
 
 # Login amb el teu publisher
-vsce login el-teu-publisher-id
+vsce login mainlab
 # Enganxa el teu PAT quan t'ho demani
 
 # Empaqueta l'extensió (opcional, per provar)

@@ -8,8 +8,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/catala-softcatala"
+    "url": "https://github.com/jaumesaa/SoftCatal-4VSCode"
   },
+  "bugs": {
+    "url": "https://github.com/jaumesaa/SoftCatal-4VSCode/issues"
+  },
+  "homepage": "https://github.com/jaumesaa/SoftCatal-4VSCode#readme",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -157,7 +161,7 @@
         {
           "id": "catalaPanel",
           "title": "Català",
-          "icon": "$(book)"
+          "icon": "images/icon.svg"
         }
       ]
     },
