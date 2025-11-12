@@ -18,8 +18,8 @@ Extensió de Visual Studio Code per a la correcció ortogràfica i gramatical de
 ## Requisits
 
 - Visual Studio Code 1.80.0 o superior
-- Connexió a internet (si utilitzes l'API de SoftCatalà)
-- Opcionalment: servidor LanguageTool local per a ús offline
+- Connexió a internet (per utilitzar l'API de SoftCatalà en mode online)
+- **LanguageTool ve inclòs** en el paquet de l'extensió (~100MB) per a ús offline
 
 ## Instal·lació
 
@@ -95,8 +95,13 @@ L'extensió comprovarà automàticament el text mentre escrius:
 
 L'extensió mostra un panell lateral "Corrector Català" a VSCode amb les següents funcionalitats:
 
+**Botons d'Activació:**
+- **🌐 ONLINE (SoftCatalà)**: Activa el corrector en mode online (recomanat)
+- **📦 OFFLINE (Local)**: Activa el corrector en mode offline amb LanguageTool local
+- **⏸ PAUSAR**: Pausa el corrector (es mostren els botons d'activació quan està pausat)
+
 **Activació Automàtica:**
-- Quan obris el panell lateral, l'extensió **verifica automàticament tot el document obert**
+- Quan obris el panell lateral i activis el corrector, l'extensió **verifica automàticament tot el document obert**
 - Mostra un missatge de "Comprovant..." mentre escaneja tots els comentaris
 - Un cop finalitzada la verificació, mostra tots els errors detectats
 
@@ -104,6 +109,10 @@ L'extensió mostra un panell lateral "Corrector Català" a VSCode amb les següe
 - Dropdown per canviar les formes verbals (Central, Valenciana, Balear)
 - Checkbox per deshabilitar les correccions de majúscules de principi de frase
 - Els canvis de configuració triguen una re-verificació automàtica del document
+- Botó ⚙️ per accedir a la configuració avançada:
+  - Informació del creador i enllaços
+  - Informació de la versió
+  - **🗑️ Eliminar LanguageTool local**: Allibera ~100MB d'espai (deshabilita permanentment el mode offline)
 
 **Secció d'Errors:**
 - Llista de tots els errors detectats
@@ -154,24 +163,24 @@ Pots canviar la variant a la configuració:
 
 ⚠️ **Nota**: Aquesta opció només funciona en mode SoftCatalà (online). En mode local (LanguageTool), sempre utilitza formes centrals.
 
-## Servidor LanguageTool local
+## Mode Offline amb LanguageTool
 
-Si vols utilitzar un servidor local per a més privacitat o per treballar offline:
+L'extensió **ja inclou LanguageTool** (~100MB) en el seu paquet, així que pots utilitzar el mode offline sense haver de descarregar res addicional:
 
-1. Descarrega LanguageTool des de https://languagetool.org/download/
-2. Inicia el servidor: `java -cp languagetool-server.jar org.languagetool.server.HTTPServer --port 8081`
-3. Configura l'extensió per utilitzar el servidor local:
-   ```json
-   {
-     "catala.serverMode": "local",
-     "catala.localServerUrl": "http://localhost:8081"
-   }
-   ```
+1. Obre el panell lateral "Corrector Català"
+2. Fes clic al botó **📦 OFFLINE (Local)**
+3. L'extensió iniciarà automàticament el servidor LanguageTool local inclòs
+
+**Nota**: El mode offline utilitza el servidor LanguageTool inclòs en l'extensió. Si l'has eliminat prèviament, necessitaràs reinstal·lar l'extensió per recuperar-lo.
+
+**Alliberar espai:**
+- Si necessites alliberar espai (~100MB), pots eliminar LanguageTool des de la configuració del panell lateral (botó ⚙️ → Emmagatzematge → Eliminar LanguageTool local)
+- **Atenció**: Això deshabilita permanentment el mode offline. Per recuperar-lo, cal reinstal·lar l'extensió completa.
 
 ## Privacitat
 
-- **Mode SoftCatalà (API)**: El text s'envia a l'API de SoftCatalà per a la comprovació. SoftCatalà no emmagatzema els textos, només dades estadístiques anonimitzades.
-- **Mode local**: Tot el processament es fa localment al teu ordinador.
+- **Mode Online (API SoftCatalà)**: El text s'envia a l'API de SoftCatalà per a la comprovació. SoftCatalà no emmagatzema els textos, només dades estadístiques anonimitzades.
+- **Mode Offline (LanguageTool local)**: Tot el processament es fa localment al teu ordinador. LanguageTool ve inclòs en el paquet de l'extensió.
 
 ## Problemes coneguts
 
@@ -197,11 +206,6 @@ MIT License - Consulta el fitxer [LICENSE](LICENSE) per a més detalls.
 - La comunitat de Visual Studio Code
 
 ## Enllaços
-
-- [GitHub Repository](https://github.com/your-username/catala-softcatala)
-- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=your-publisher-name.catala-softcatala)
-- [SoftCatalà](https://www.softcatala.org/)
-- [Reportar un problema](https://github.com/your-username/catala-softcatala/issues)
 
 - [GitHub Repository](https://github.com/jaumesaa/SoftCatal-4VSCode)
 - [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=mainlab.catala-softcatala)
