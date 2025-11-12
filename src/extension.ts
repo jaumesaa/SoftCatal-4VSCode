@@ -114,6 +114,41 @@ export function activate(context: vscode.ExtensionContext) {
             // Quan es pausa l'extensió: netejar diagnòstics
             checker?.clearDiagnostics();
             errorsPanelProvider?.clearErrors();
+        },
+        async () => {
+            // Eliminar LanguageTool
+            const confirm = await vscode.window.showWarningMessage(
+                '⚠️ Estàs a punt d\'eliminar LanguageTool local (~100MB). Això deshabilitarà la correcció offline de manera permanent. Per recuperar-la, hauràs de reinstal·lar l\'extensió. Vols continuar?',
+                { modal: true },
+                'Eliminar',
+                'Cancel·lar'
+            );
+
+            if (confirm === 'Eliminar') {
+                const success = LanguageToolHelper.deleteLanguageTool(context.extensionPath);
+                
+                if (success) {
+                    vscode.window.showInformationMessage('✅ LanguageTool eliminat correctament. La correcció offline ja no està disponible.');
+                    
+                    // Si estaban en modo offline, cambiar a online
+                    const config = vscode.workspace.getConfiguration('catala');
+                    const currentMode = config.get('serverMode');
+                    if (currentMode === 'local') {
+                        config.update('serverMode', 'softcatala', vscode.ConfigurationTarget.Global);
+                        context.globalState.update('lastServerMode', 'softcatala');
+                        vscode.window.showInformationMessage('🌐 Canviat a mode online (API de SoftCatalà)');
+                        
+                        // Re-chequear el documento actual
+                        const editor = vscode.window.activeTextEditor;
+                        if (editor) {
+                            checker?.updateConfiguration();
+                            checker?.checkDocument(editor.document);
+                        }
+                    }
+                } else {
+                    vscode.window.showErrorMessage('❌ Error eliminant LanguageTool. Torna-ho a intentar més tard.');
+                }
+            }
         }
     );
 

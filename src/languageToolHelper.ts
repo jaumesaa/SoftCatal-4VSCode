@@ -54,4 +54,47 @@ export class LanguageToolHelper {
         console.log('SoftCatalà: ✅ LanguageTool está disponible y completo');
         return true;
     }
+
+    /**
+     * Elimina LanguageTool de la extensión
+     * Esto libera ~100MB de espacio pero deshabilita la corrección offline permanentemente
+     */
+    public static deleteLanguageTool(extensionPath: string): boolean {
+        const languageToolPath = path.join(extensionPath, 'languagetool');
+
+        try {
+            if (!fs.existsSync(languageToolPath)) {
+                console.log('SoftCatalà: LanguageTool ya está eliminado');
+                return true;
+            }
+
+            console.log('SoftCatalà: Eliminando LanguageTool de:', languageToolPath);
+
+            // Eliminar recursivamente toda la carpeta languagetool
+            this.removeDirectoryRecursive(languageToolPath);
+
+            console.log('SoftCatalà: ✅ LanguageTool eliminado correctamente');
+            return true;
+        } catch (error) {
+            console.error('SoftCatalà: Error eliminando LanguageTool:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Elimina un directorio recursivamente
+     */
+    private static removeDirectoryRecursive(dirPath: string): void {
+        if (fs.existsSync(dirPath)) {
+            fs.readdirSync(dirPath).forEach(file => {
+                const filePath = path.join(dirPath, file);
+                if (fs.lstatSync(filePath).isDirectory()) {
+                    this.removeDirectoryRecursive(filePath);
+                } else {
+                    fs.unlinkSync(filePath);
+                }
+            });
+            fs.rmdirSync(dirPath);
+        }
+    }
 }

@@ -39,7 +39,8 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         private readonly onOfflineMode?: () => void,
         private readonly onOnlineMode?: () => void,
         private readonly onExtensionPaused?: () => void,
-        private readonly onSettingsClicked?: () => void
+        private readonly onSettingsClicked?: () => void,
+        private readonly onDeleteLanguageTool?: () => Promise<void>
     ) {
         // Inicialitzar la configuració de capitalització
         const config = vscode.workspace.getConfiguration('catala');
@@ -156,6 +157,11 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 case 'backFromSettings':
                     this.showSettings = false;
                     this._update();
+                    break;
+                case 'deleteLanguageTool':
+                    if (this.onDeleteLanguageTool) {
+                        this.onDeleteLanguageTool();
+                    }
                     break;
             }
         });
@@ -995,7 +1001,7 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                             Informació de la versió
                         </div>
                         <div class="settings-description">
-                            <strong>SoftCatalà</strong> v0.2.0<br>
+                            <strong>SoftCatalà</strong> v0.3.0<br>
                             Corrector ortogràfic i gramatical per al català.<br><br>
                             Suporta dos modes:<br>
                             • <strong>🌐 Online:</strong> Usa l'API de SoftCatalà (recomanat)<br>
@@ -1017,9 +1023,8 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                         <div class="settings-description">
                             Elimina la còpia local de LanguageTool per alliberar espai. Això deshabilitarà la correcció offline de manera permanent.
                         </div>
-                        <button class="delete-btn" onclick="deleteLanguageTool()" disabled>
+                        <button class="delete-btn" onclick="deleteLanguageTool()">
                             🗑️ Eliminar LanguageTool local
-                            <span class="status-badge coming-soon">Properament</span>
                         </button>
                     </div>
                 </div>

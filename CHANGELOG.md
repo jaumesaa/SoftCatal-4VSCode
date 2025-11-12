@@ -5,6 +5,33 @@ Tots els canvis notables d'aquest projecte es documentaran en aquest fitxer.
 El format està basat en [Keep a Changelog](https://keepachangelog.com/ca/1.0.0/),
 i aquest projecte segueix [Semantic Versioning](https://semver.org/lang/ca/).
 
+## [0.3.0] - 2025-11-12
+
+### ✨ Afegit
+
+**Gestió d'Emmagatzematge:**
+- 🗑️ Nou botó "Eliminar LanguageTool local" en la configuració
+- 💾 Permet alliberar ~100MB d'espai eliminant LanguageTool del dispositiu
+- ⚠️ Diàleg de confirmació abans d'eliminar amb advertència clara
+- 🌐 Canvi automàtic a mode online si l'usuari estava en mode offline
+- 🔄 Re-verificació automàtica del document després d'eliminar
+
+**Millores d'UX:**
+- 🎯 Botó completament funcional (ja no mostra "Properament")
+- ℹ️ Informació clara sobre les conseqüències d'eliminar LanguageTool
+- ✅ Notificacions informatives del resultat de l'operació
+
+### 🔧 Canvis Tècnics
+- `languageToolHelper.ts`: Afegides funcions `deleteLanguageTool()` i `removeDirectoryRecursive()`
+- `errorsPanel.ts`: Afegit callback `onDeleteLanguageTool` i handler del missatge
+- `extension.ts`: Implementada lògica completa d'eliminació amb confirmació i canvi automàtic de mode
+
+### ⚠️ Notes Importants
+- LanguageTool ve inclòs en el paquet de l'extensió (~100MB)
+- Un cop eliminat, per recuperar-lo cal reinstal·lar l'extensió completa
+- L'eliminació és permanent i no es pot desfer
+- El mode online (API SoftCatalà) continua funcionant sense LanguageTool
+
 ## [0.2.0] - 2025-11-11
 
 ### ✨ Afegit
