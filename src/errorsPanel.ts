@@ -962,13 +962,6 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                         </div>
                         <div class="creator-info">
                             <div class="creator-item">
-                                <div class="creator-item-icon">👤</div>
-                                <div class="creator-item-content">
-                                    <div class="creator-item-label">Desenvolupador</div>
-                                    <div class="creator-item-value">Jaume Samodelà</div>
-                                </div>
-                            </div>
-                            <div class="creator-item">
                                 <div class="creator-item-icon">🐙</div>
                                 <div class="creator-item-content">
                                     <div class="creator-item-label">GitHub</div>
