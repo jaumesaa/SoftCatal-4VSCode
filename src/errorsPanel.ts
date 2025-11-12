@@ -26,6 +26,7 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
     private countdownInterval?: NodeJS.Timeout;
     private disableCapitalizationRules: boolean = false;
     private isExtensionActive: boolean = false;
+    private showSettings: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -37,7 +38,8 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
         private readonly onPanelOpened?: () => void,
         private readonly onOfflineMode?: () => void,
         private readonly onOnlineMode?: () => void,
-        private readonly onExtensionPaused?: () => void
+        private readonly onExtensionPaused?: () => void,
+        private readonly onSettingsClicked?: () => void
     ) {
         // Inicialitzar la configuració de capitalització
         const config = vscode.workspace.getConfiguration('catala');
@@ -79,7 +81,9 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
             type: 'update',
             errors: this.errors,
             isLoading: this.isLoading,
-            connectionStatus: this.connectionStatus
+            connectionStatus: this.connectionStatus,
+            isExtensionActive: this.isExtensionActive,
+            showSettings: this.showSettings
         });
 
         // Gestionar missatges del webview
@@ -144,6 +148,14 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     if (this.onExtensionPaused) {
                         this.onExtensionPaused();
                     }
+                    break;
+                case 'settingsClicked':
+                    this.showSettings = true;
+                    this._update();
+                    break;
+                case 'backFromSettings':
+                    this.showSettings = false;
+                    this._update();
                     break;
             }
         });
@@ -238,7 +250,8 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 errors: this.errors,
                 isLoading: this.isLoading,
                 connectionStatus: this.connectionStatus,
-                isExtensionActive: this.isExtensionActive
+                isExtensionActive: this.isExtensionActive,
+                showSettings: this.showSettings
             });
         }
     }
@@ -268,10 +281,31 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 }
 
                 .header {
+                    position: relative;
                     text-align: center;
                     padding: 20px 0;
                     border-bottom: 1px solid var(--vscode-panel-border);
                     margin-bottom: 20px;
+                }
+
+                .settings-btn {
+                    position: absolute;
+                    top: 10px;
+                    right: 0;
+                    background: none;
+                    border: none;
+                    color: var(--vscode-foreground);
+                    cursor: pointer;
+                    font-size: 18px;
+                    padding: 4px;
+                    border-radius: 4px;
+                    transition: all 0.2s;
+                    opacity: 0.7;
+                }
+
+                .settings-btn:hover {
+                    opacity: 1;
+                    background-color: var(--vscode-button-hoverBackground);
                 }
 
                 .logo {
@@ -641,10 +675,234 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     font-weight: 600;
                     color: var(--vscode-editorWarning-foreground);
                 }
+
+                .back-btn {
+                    background-color: #ff6b6b;
+                    color: #fff;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-family: var(--vscode-font-family);
+                    font-weight: 600;
+                    transition: all 0.2s;
+                    position: absolute;
+                    top: 10px;
+                    left: 0;
+                }
+
+                .back-btn:hover {
+                    background-color: #ff5252;
+                    transform: translateY(-1px);
+                }
+
+                .settings-view {
+                    display: none;
+                }
+
+                .settings-view.active {
+                    display: block;
+                }
+
+                .settings-header {
+                    position: relative;
+                    text-align: center;
+                    padding: 20px 0;
+                    border-bottom: 1px solid var(--vscode-panel-border);
+                    margin-bottom: 20px;
+                }
+
+                .settings-header-title {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: var(--vscode-foreground);
+                }
+
+                .settings-content {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+
+                .settings-section {
+                    background-color: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 6px;
+                    padding: 16px;
+                }
+
+                .settings-section-title {
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: var(--vscode-foreground);
+                    margin-bottom: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .settings-section-icon {
+                    font-size: 16px;
+                }
+
+                .creator-info {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+
+                .creator-item {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                }
+
+                .creator-item-icon {
+                    font-size: 20px;
+                    margin-top: 2px;
+                    flex-shrink: 0;
+                }
+
+                .creator-item-content {
+                    flex: 1;
+                }
+
+                .creator-item-label {
+                    font-size: 12px;
+                    color: var(--vscode-descriptionForeground);
+                    margin-bottom: 4px;
+                }
+
+                .creator-item-value {
+                    font-size: 13px;
+                    color: var(--vscode-foreground);
+                    word-break: break-word;
+                }
+
+                .creator-item-value a {
+                    color: var(--vscode-textLink-foreground);
+                    text-decoration: none;
+                    cursor: pointer;
+                }
+
+                .creator-item-value a:hover {
+                    text-decoration: underline;
+                }
+
+                .danger-section {
+                    background-color: rgba(205, 92, 92, 0.1);
+                    border: 1px solid rgba(205, 92, 92, 0.3);
+                }
+
+                .danger-section .settings-section-title {
+                    color: #cd5c5c;
+                }
+
+                .storage-info {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 12px;
+                    background-color: var(--vscode-textCodeBlock-background);
+                    border-radius: 4px;
+                    margin-bottom: 12px;
+                    font-size: 12px;
+                }
+
+                .storage-icon {
+                    font-size: 16px;
+                    flex-shrink: 0;
+                }
+
+                .storage-text {
+                    flex: 1;
+                    color: var(--vscode-descriptionForeground);
+                }
+
+                .storage-size {
+                    font-weight: 600;
+                    color: var(--vscode-foreground);
+                }
+
+                .delete-btn {
+                    width: 100%;
+                    background-color: #cd5c5c;
+                    color: #fff;
+                    border: none;
+                    padding: 10px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-family: var(--vscode-font-family);
+                    font-weight: 600;
+                    transition: all 0.2s;
+                    margin-top: 8px;
+                }
+
+                .delete-btn:hover {
+                    background-color: #b84343;
+                    transform: translateY(-1px);
+                }
+
+                .delete-btn:disabled {
+                    background-color: #888;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+
+                .status-badge {
+                    display: inline-block;
+                    padding: 2px 8px;
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border-radius: 12px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+
+                .status-badge.coming-soon {
+                    background-color: rgba(215, 186, 125, 0.3);
+                    color: #d7ba7d;
+                }
+
+                .settings-description {
+                    font-size: 12px;
+                    color: var(--vscode-descriptionForeground);
+                    margin-bottom: 12px;
+                    line-height: 1.5;
+                }
+
+                .settings-links {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                }
+
+                .settings-link-btn {
+                    background-color: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    padding: 6px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-family: var(--vscode-font-family);
+                    transition: all 0.2s;
+                    text-decoration: none;
+                    display: inline-block;
+                }
+
+                .settings-link-btn:hover {
+                    background-color: var(--vscode-button-hoverBackground);
+                    transform: translateY(-1px);
+                }
             </style>
         </head>
         <body>
             <div class="header">
+                <button class="settings-btn" id="settingsBtn" onclick="openSettings()" title="Configuració">⚙️</button>
+                <button class="back-btn" id="backBtn" onclick="backFromSettings()" style="display: none;">← Torna</button>
                 <div class="logo">
                     <img src="${styleUri}" alt="SoftCatalà">
                 </div>
@@ -691,6 +949,89 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>
 
+            <div id="settingsView" class="settings-view">
+                <div class="settings-header">
+                    <div class="settings-header-title">⚙️ Configuració</div>
+                </div>
+
+                <div class="settings-content">
+                    <div class="settings-section">
+                        <div class="settings-section-title">
+                            <span class="settings-section-icon">👨‍💻</span>
+                            Sobre el creador
+                        </div>
+                        <div class="creator-info">
+                            <div class="creator-item">
+                                <div class="creator-item-icon">👤</div>
+                                <div class="creator-item-content">
+                                    <div class="creator-item-label">Desenvolupador</div>
+                                    <div class="creator-item-value">Jaume Samodelà</div>
+                                </div>
+                            </div>
+                            <div class="creator-item">
+                                <div class="creator-item-icon">🐙</div>
+                                <div class="creator-item-content">
+                                    <div class="creator-item-label">GitHub</div>
+                                    <div class="creator-item-value">
+                                        <a href="https://github.com/jaumesaa" target="_blank">github.com/jaumesaa</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="creator-item">
+                                <div class="creator-item-icon">📦</div>
+                                <div class="creator-item-content">
+                                    <div class="creator-item-label">Repositori</div>
+                                    <div class="creator-item-value">
+                                        <a href="https://github.com/jaumesaa/SoftCatal-4VSCode" target="_blank">SoftCatal-4VSCode</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="creator-item">
+                                <div class="creator-item-icon">⭐</div>
+                                <div class="creator-item-content">
+                                    <div class="creator-item-label">Si t'agrada, dona una estrella!</div>
+                                    <div class="creator-item-value">La teva estrella ens ajuda a créixer</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-title">
+                            <span class="settings-section-icon">ℹ️</span>
+                            Informació de la versió
+                        </div>
+                        <div class="settings-description">
+                            <strong>SoftCatalà</strong> v0.2.0<br>
+                            Corrector ortogràfic i gramatical per al català.<br><br>
+                            Suporta dos modes:<br>
+                            • <strong>🌐 Online:</strong> Usa l'API de SoftCatalà (recomanat)<br>
+                            • <strong>📦 Offline:</strong> Usa servidor LanguageTool local
+                        </div>
+                    </div>
+
+                    <div class="settings-section danger-section">
+                        <div class="settings-section-title">
+                            <span class="settings-section-icon">🗑️</span>
+                            Emmagatzematge
+                        </div>
+                        <div class="storage-info">
+                            <div class="storage-icon">💾</div>
+                            <div class="storage-text">
+                                LanguageTool local: <span class="storage-size">~100MB</span>
+                            </div>
+                        </div>
+                        <div class="settings-description">
+                            Elimina la còpia local de LanguageTool per alliberar espai. Això deshabilitarà la correcció offline de manera permanent.
+                        </div>
+                        <button class="delete-btn" onclick="deleteLanguageTool()" disabled>
+                            🗑️ Eliminar LanguageTool local
+                            <span class="status-badge coming-soon">Properament</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <script>
                 const vscode = acquireVsCodeApi();
 
@@ -707,7 +1048,7 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 window.addEventListener('message', event => {
                     const message = event.data;
                     if (message.type === 'update') {
-                        updateUI(message.errors, message.isLoading, message.connectionStatus, message.isExtensionActive);
+                        updateUI(message.errors, message.isLoading, message.connectionStatus, message.isExtensionActive, message.showSettings);
                     } else if (message.type === 'init') {
                         // Inicialitzar configuració guardada
                         const verbFormsSelect = document.getElementById('verbFormsSelect');
@@ -723,12 +1064,26 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     }
                 });
 
-                function updateUI(errors, isLoading, connectionStatus, isExtensionActive) {
+                function updateUI(errors, isLoading, connectionStatus, isExtensionActive, showSettings) {
                     // Actualitzar botons d'activació/pausa
                     updateActivationButtons(isExtensionActive);
 
                     // Actualitzar estat de connexió
                     updateConnectionStatus(connectionStatus);
+
+                    // Si es mostren les configuracions, no actualitzar el contingut d'errors
+                    if (showSettings) {
+                        document.getElementById('content').style.display = 'none';
+                        document.getElementById('settingsView').classList.add('active');
+                        document.getElementById('settingsBtn').style.display = 'none';
+                        document.getElementById('backBtn').style.display = 'block';
+                        return;
+                    } else {
+                        document.getElementById('content').style.display = 'block';
+                        document.getElementById('settingsView').classList.remove('active');
+                        document.getElementById('settingsBtn').style.display = 'block';
+                        document.getElementById('backBtn').style.display = 'none';
+                    }
 
                     const content = document.getElementById('content');
 
@@ -937,6 +1292,24 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                 function pauseExtension() {
                     vscode.postMessage({
                         type: 'extensionPaused'
+                    });
+                }
+
+                function openSettings() {
+                    vscode.postMessage({
+                        type: 'settingsClicked'
+                    });
+                }
+
+                function backFromSettings() {
+                    vscode.postMessage({
+                        type: 'backFromSettings'
+                    });
+                }
+
+                function deleteLanguageTool() {
+                    vscode.postMessage({
+                        type: 'deleteLanguageTool'
                     });
                 }
 

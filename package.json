@@ -152,7 +152,8 @@
         {
           "id": "catalaErrorsPanel",
           "name": "Corrector Català",
-          "type": "webview"
+          "type": "webview",
+          "icon": "images/icon.svg"
         }
       ]
     },
