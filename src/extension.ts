@@ -87,7 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
             const config = vscode.workspace.getConfiguration('catala');
             config.update('serverMode', 'local', vscode.ConfigurationTarget.Global);
             context.globalState.update('lastServerMode', 'local');
-            vscode.window.showInformationMessage('S\'usarà el servidor LanguageTool incrustado per corregir en català sense connexió a internet.');
+            // Eliminat: avis servidor local activat
             
             // Re-chequjar el document actual
             const editor = vscode.window.activeTextEditor;
@@ -101,7 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
             const config = vscode.workspace.getConfiguration('catala');
             config.update('serverMode', 'softcatala', vscode.ConfigurationTarget.Global);
             context.globalState.update('lastServerMode', 'softcatala');
-            vscode.window.showInformationMessage('Mode online activat. L\'extensió usarà l\'API de SoftCatalà.');
+            // Eliminat: avis online activat
             
             // Re-chequjar el document actual
             const editor = vscode.window.activeTextEditor;
