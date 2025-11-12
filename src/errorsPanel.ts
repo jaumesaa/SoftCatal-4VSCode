@@ -900,9 +900,8 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
             </style>
         </head>
         <body>
-            <div class="header">
+            <div id="header" class="header">
                 <button class="settings-btn" id="settingsBtn" onclick="openSettings()" title="Configuració">⚙️</button>
-                <button class="back-btn" id="backBtn" onclick="backFromSettings()" style="display: none;">← Torna</button>
                 <div class="logo">
                     <img src="${styleUri}" alt="SoftCatalà">
                 </div>
@@ -951,6 +950,7 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
 
             <div id="settingsView" class="settings-view">
                 <div class="settings-header">
+                    <button class="back-btn" onclick="backFromSettings()">← Torna</button>
                     <div class="settings-header-title">⚙️ Configuració</div>
                 </div>
 
@@ -1071,18 +1071,17 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     // Actualitzar estat de connexió
                     updateConnectionStatus(connectionStatus);
 
-                    // Si es mostren les configuracions, no actualitzar el contingut d'errors
+                    // Si es mostren les configuracions, ocultar tot el contingut principal
                     if (showSettings) {
+                        document.getElementById('header').style.display = 'none';
+                        document.getElementById('settings').style.display = 'none';
                         document.getElementById('content').style.display = 'none';
                         document.getElementById('settingsView').classList.add('active');
-                        document.getElementById('settingsBtn').style.display = 'none';
-                        document.getElementById('backBtn').style.display = 'block';
                         return;
                     } else {
+                        document.getElementById('header').style.display = 'block';
                         document.getElementById('content').style.display = 'block';
                         document.getElementById('settingsView').classList.remove('active');
-                        document.getElementById('settingsBtn').style.display = 'block';
-                        document.getElementById('backBtn').style.display = 'none';
                     }
 
                     const content = document.getElementById('content');
