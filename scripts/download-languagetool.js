@@ -9,12 +9,12 @@ const LANGUAGETOOL_VERSION = '6.0';
 const OUTPUT_DIR = path.join(__dirname, '..', 'languagetool');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'languagetool-server.jar');
 
-// Crear directori si no existeij.
+// Crear directori si no existeix.
 if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-// Comprovar si ja està descarrejat!
+// Comprovar si ja està descarregat!
 if (fs.existsSync(OUTPUT_FILE)) {
     console.log('LanguageTool ja està descarregat.');
     process.exit(0);

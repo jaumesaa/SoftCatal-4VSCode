@@ -97,6 +97,7 @@ export class LanguageToolService {
         if (this.serverMode === 'softcatala') {
             this.baseUrl = config.get('softcatalaApiUrl', 'https://api.softcatala.org/corrector/v2');
         } else {
+            // LanguageTool local usa /v2 como endpoint base
             this.baseUrl = config.get('localServerUrl', 'http://localhost:8081/v2');
         }
     }
@@ -209,9 +210,20 @@ export class LanguageToolService {
     private async performCheck(text: string): Promise<LanguageToolMatch[]> {
         const params = new URLSearchParams();
         params.append('text', text);
-        params.append('language', this.language);
-        params.append('verbForms', this.verbForms);
-        params.append('enabledOnly', 'false');
+        
+        // LanguageTool local usa códigos de idioma cortos (ca, es, en) sin región
+        // SoftCatalà usa códigos completos (ca-ES, ca-ES-valencia)
+        if (this.serverMode === 'softcatala') {
+            params.append('language', this.language);
+            params.append('verbForms', this.verbForms);
+            params.append('enabledOnly', 'false');
+        } else {
+            // Convertir ca-ES -> ca para LanguageTool
+            const langCode = this.language.split('-')[0];
+            params.append('language', langCode);
+        }
+
+        console.log(`SoftCatalà: Petición a ${this.baseUrl}/check con parámetros:`, params.toString());
 
         const response = await this.client.post<LanguageToolResponse>(
             `${this.baseUrl}/check`,
