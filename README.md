@@ -2,6 +2,9 @@
 
 Extensió de Visual Studio Code per a la correcció ortogràfica i gramatical de textos en català utilitzant l'API de [SoftCatalà](https://www.softcatala.org/) basada en LanguageTool.
 
+### Enllaç MarketPlace:
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=mainlab.catala-softcatala)
+
 ## Característiques
 
 ✨ **Mode de correcció de comentaris** (activat per defecte): Corregeix automàticament els comentaris del codi en diferents llenguatges de programació
