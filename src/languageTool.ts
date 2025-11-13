@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import axios, { AxiosInstance } from 'axios';
 import { LocalLanguageToolServer } from './localServer';
+import { LanguageToolHelper } from './languageToolHelper';
 
 interface LanguageToolMatch {
     message: string;
@@ -104,19 +105,46 @@ export class LanguageToolService {
 
     public async check(text: string): Promise<LanguageToolMatch[]> {
         try {
-            // Si estem en mode local, assegurar que el servidor està en execució
-            if (this.serverMode === 'local' && this.localServer) {
-                try {
-                    await this.localServer.start();
-                } catch (error) {
-                    console.error('SoftCatalà: Error al iniciar servidor local:', error);
-                    // FALLBACK AUTOMÀTIC: Si el servidor local falla, intentar mode online
-                    console.warn('SoftCatalà: Canviant a mode online automàticament per error al servidor local');
+            // Si estem en mode local, verificar que LanguageTool està disponible
+            if (this.serverMode === 'local') {
+                const isAvailable = LanguageToolHelper.isAvailable(this.extensionPath, this.globalStoragePath);
+                
+                if (!isAvailable) {
+                    // LanguageTool no disponible - mostrar aviso y cambiar a online
+                    console.error('SoftCatalà: LanguageTool local no disponible o danyat');
+                    vscode.window.showWarningMessage(
+                        '⚠️ LanguageTool local no està disponible o ha estat eliminat. '
+                        + 'Per utilitzar la correcció offline, si us plau reinstal·la l\'extensió. '
+                        + 'S\'ha canviat automàticament a mode online.',
+                        'D\'acord'
+                    );
+                    
+                    // Cambiar automáticamente a modo online
                     this.serverMode = 'softcatala';
                     this.baseUrl = 'https://api.softcatala.org/corrector/v2';
-                    this.autoFallbackAttempted = true;
-                    // Reintentar amb el mode online
+                    
+                    // Actualizar configuración para reflejar el cambio
+                    const config = vscode.workspace.getConfiguration('catala');
+                    config.update('serverMode', 'softcatala', vscode.ConfigurationTarget.Global);
+                    
+                    // Reintentar con modo online
                     return this.check(text);
+                }
+                
+                // LanguageTool disponible - intentar iniciar servidor
+                if (this.localServer) {
+                    try {
+                        await this.localServer.start();
+                    } catch (error) {
+                        console.error('SoftCatalà: Error al iniciar servidor local:', error);
+                        // FALLBACK AUTOMÀTIC: Si el servidor local falla, intentar mode online
+                        console.warn('SoftCatalà: Canviant a mode online automàticament per error al servidor local');
+                        this.serverMode = 'softcatala';
+                        this.baseUrl = 'https://api.softcatala.org/corrector/v2';
+                        this.autoFallbackAttempted = true;
+                        // Reintentar amb el mode online
+                        return this.check(text);
+                    }
                 }
             }
 

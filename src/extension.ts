@@ -119,10 +119,14 @@ export function activate(context: vscode.ExtensionContext) {
             checker?.clearDiagnostics();
             errorsPanelProvider?.clearErrors();
         },
+        () => {
+            // Callback onSettingsClicked (no usado actualmente)
+            // Se puede implementar funcionalidad adicional si es necesario
+        },
         async () => {
             // Eliminar LanguageTool
             const confirm = await vscode.window.showWarningMessage(
-                '⚠️ Estàs a punt d\'eliminar LanguageTool local (~100MB). Això deshabilitarà la correcció offline de manera permanent. Per recuperar-la, hauràs de reinstal·lar l\'extensió. Vols continuar?',
+                '⚠️ Estàs a punt d\'eliminar LanguageTool local (~370MB). Això deshabilitarà la correcció offline de manera permanent. Per recuperar-la, hauràs de reinstal·lar l\'extensió. Vols continuar?',
                 { modal: true },
                 'Eliminar',
                 'Cancel·lar'
@@ -134,21 +138,22 @@ export function activate(context: vscode.ExtensionContext) {
                 if (success) {
                     vscode.window.showInformationMessage('✅ LanguageTool eliminat correctament. La correcció offline ja no està disponible.');
                     
-                    // Si estaban en modo offline, cambiar a online
+                    // Forzar cambio a modo online
                     const config = vscode.workspace.getConfiguration('catala');
-                    const currentMode = config.get('serverMode');
-                    if (currentMode === 'local') {
-                        config.update('serverMode', 'softcatala', vscode.ConfigurationTarget.Global);
-                        context.globalState.update('lastServerMode', 'softcatala');
-                        vscode.window.showInformationMessage('🌐 Canviat a mode online (API de SoftCatalà)');
-                        
-                        // Re-chequear el documento actual
-                        const editor = vscode.window.activeTextEditor;
-                        if (editor) {
-                            checker?.updateConfiguration();
-                            checker?.checkDocument(editor.document);
-                        }
+                    config.update('serverMode', 'softcatala', vscode.ConfigurationTarget.Global);
+                    context.globalState.update('lastServerMode', 'softcatala');
+                    
+                    // Notificar al checker que LanguageTool fue eliminado
+                    checker?.updateConfiguration();
+                    
+                    // Limpiar diagnósticos y re-chequear con modo online
+                    checker?.clearDiagnostics();
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        checker?.checkDocument(editor.document);
                     }
+                    
+                    vscode.window.showInformationMessage('🌐 S\'ha canviat a mode online (API de SoftCatalà)');
                 } else {
                     vscode.window.showErrorMessage('❌ Error eliminant LanguageTool. Torna-ho a intentar més tard.');
                 }

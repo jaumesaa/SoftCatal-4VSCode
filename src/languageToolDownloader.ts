@@ -14,6 +14,13 @@ export class LanguageToolDownloader {
      * y copiándolo a globalStoragePath si es necesario, o descargándolo si no está en ningún lado
      */
     public static async ensureAvailable(extensionPath: string, globalStoragePath: string): Promise<void> {
+        // Verificar si fue marcado como eliminado intencionalmente
+        const markerFile = path.join(globalStoragePath, '.languagetool-deleted');
+        if (fs.existsSync(markerFile)) {
+            console.log('SoftCatalà: LanguageTool fue eliminado intencionalmente, no se copiará automáticamente');
+            return;
+        }
+
         // Primero verificar si ya está en globalStorage (descargado anteriormente)
         if (this.isDownloaded(globalStoragePath)) {
             console.log('SoftCatalà: ✅ LanguageTool ya disponible en globalStorage');
@@ -42,17 +49,17 @@ export class LanguageToolDownloader {
         // Si no está bundled ni descargado, ofrecer descarga
         console.log('SoftCatalà: LanguageTool no encontrado, ofreciendo descarga...');
         const choice = await vscode.window.showInformationMessage(
-            'LanguageTool local no está disponible. ¿Quieres descargarlo (~100MB) para corrección offline?',
-            'Descargar',
+            'LanguageTool local no està disponible. Vols descarregar-lo (~220MB) per a correcció offline?',
+            'Descarregar',
             'Ignorar'
         );
 
-        if (choice === 'Descargar') {
+        if (choice === 'Descarregar') {
             try {
                 await this.ensureDownloaded(globalStoragePath);
             } catch (err) {
                 console.error('SoftCatalà: Error descargando LanguageTool:', err);
-                vscode.window.showErrorMessage('No se pudo descargar LanguageTool. Revisa la consola para más detalles.');
+                vscode.window.showErrorMessage('No s\'ha pogut descarregar LanguageTool. Revisa la consola per a més detalls.');
             }
         }
     }

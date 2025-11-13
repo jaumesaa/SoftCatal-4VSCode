@@ -160,7 +160,12 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'deleteLanguageTool':
                     if (this.onDeleteLanguageTool) {
-                        this.onDeleteLanguageTool();
+                        console.log('SoftCatalà: Ejecutando eliminación de LanguageTool...');
+                        this.onDeleteLanguageTool().catch(err => {
+                            console.error('SoftCatalà: Error en deleteLanguageTool callback:', err);
+                        });
+                    } else {
+                        console.error('SoftCatalà: onDeleteLanguageTool callback no está definido');
                     }
                     break;
             }
@@ -1017,11 +1022,11 @@ export class ErrorsPanelProvider implements vscode.WebviewViewProvider {
                         <div class="storage-info">
                             <div class="storage-icon">💾</div>
                             <div class="storage-text">
-                                LanguageTool local: <span class="storage-size">~100MB</span>
+                                LanguageTool local: <span class="storage-size">~370MB</span>
                             </div>
                         </div>
                         <div class="settings-description">
-                            Elimina la còpia local de LanguageTool per alliberar espai. Això deshabilitarà la correcció offline de manera permanent.
+                            Elimina la còpia local de LanguageTool per alliberar espai. Això deshabilitarà la correcció offline. Per recuperar-la, hauràs de reinstal·lar l'extensió.
                         </div>
                         <button class="delete-btn" onclick="deleteLanguageTool()">
                             🗑️ Eliminar LanguageTool local
