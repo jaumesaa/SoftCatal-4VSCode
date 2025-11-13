@@ -14,9 +14,11 @@ export class LocalLanguageToolServer {
     private isReady: boolean = false;
     private startPromise: Promise<void> | undefined;
     private extensionPath: string;
+    private globalStoragePath: string;
 
-    constructor(extensionPath: string) {
+    constructor(extensionPath: string, globalStoragePath: string) {
         this.extensionPath = extensionPath;
+        this.globalStoragePath = globalStoragePath;
     }
 
     /**
@@ -133,22 +135,18 @@ export class LocalLanguageToolServer {
     private async launchServer(javaPath: string): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                // Obtener la ruta a la carpeta de LanguageTool
-                const langToolDir = path.dirname(this.getLanguageToolPath());
-                const libsDir = path.join(langToolDir, '..', 'LanguageTool-6.0', 'libs');
-                const serverJar = path.join(langToolDir, '..', 'LanguageTool-6.0', 'languagetool-server.jar');
+                // Obtener rutas correctas desde LanguageToolHelper (con globalStorage)
+                const serverJar = LanguageToolHelper.getServerJarPath(this.extensionPath, this.globalStoragePath);
+                const libsDir = LanguageToolHelper.getLibsPath(this.extensionPath, this.globalStoragePath);
 
                 console.log('SoftCatalà: Usando servidor JAR:', serverJar);
                 console.log('SoftCatalà: Con libs en:', libsDir);
                 console.log('SoftCatalà: Sistema operativo:', process.platform);
 
-                // Construir el classpath correctamente según el SO
-                const isWindows = process.platform === 'win32';
-                const classpathSeparator = isWindows ? ';' : ':';
-                const libsPattern = isWindows 
-                    ? `${libsDir}\\*`  // Windows usa backslash
-                    : `${libsDir}/*`;  // Unix usa forward slash
-                
+                // Construir el classpath usando el delimitador de sistema
+                const classpathSeparator = path.delimiter; // ';' en Windows, ':' en Unix
+                // Usar patrón de wildcard para incluir todas las libs
+                const libsPattern = path.join(libsDir, '*');
                 const classpath = `${serverJar}${classpathSeparator}${libsPattern}`;
                 console.log('SoftCatalà: Classpath:', classpath);
 
@@ -203,8 +201,8 @@ export class LocalLanguageToolServer {
     }
 
     private getLanguageToolPath(): string {
-        // Usar la ruta fija desde LanguageToolHelper
-        return LanguageToolHelper.getServerJarPath(this.extensionPath);
+        // Usar la ruta desde LanguageToolHelper que busca en globalStorage primero
+        return LanguageToolHelper.getServerJarPath(this.extensionPath, this.globalStoragePath);
     }
 
     private async waitForServerReady(): Promise<void> {

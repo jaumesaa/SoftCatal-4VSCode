@@ -45,9 +45,11 @@ export class LanguageToolService {
     private hasLocalServer: boolean = false; // Detecta si hi ha servidor local disponible
     private localServer: LocalLanguageToolServer | undefined; // Servidor incrustado
     private extensionPath: string;
+    private globalStoragePath: string;
 
-    constructor(extensionPath: string) {
+    constructor(extensionPath: string, globalStoragePath: string) {
         this.extensionPath = extensionPath;
+        this.globalStoragePath = globalStoragePath;
         this.client = axios.create({
             timeout: 30000,
             headers: {
@@ -59,7 +61,7 @@ export class LanguageToolService {
         this.baseUrl = '';
         this.language = 'ca-ES';
         this.verbForms = 'central';
-        this.localServer = new LocalLanguageToolServer(extensionPath);
+        this.localServer = new LocalLanguageToolServer(extensionPath, globalStoragePath);
         this.updateConfiguration();
         this.initOnlineDetection();
     }

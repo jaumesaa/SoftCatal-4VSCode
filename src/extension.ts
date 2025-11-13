@@ -16,12 +16,16 @@ export function activate(context: vscode.ExtensionContext) {
     const config = vscode.workspace.getConfiguration('catala');
     config.update('serverMode', lastServerMode, vscode.ConfigurationTarget.Global);
 
-    // Verificar que LanguageTool está disponible (incrustado en la extensión)
-    if (!LanguageToolHelper.isAvailable(context.extensionPath)) {
-        vscode.window.showErrorMessage(
-            'Error: LanguageTool no se encuentra en la extensión. Por favor, reinstala la extensión.'
-        );
-    }
+    // Comprobar asíncronamente si LanguageTool está disponible. Esto NO debe bloquear
+    // la activación de la extensión. Si falta, ofrecer descargarlo o copiarlo del package.
+    setTimeout(async () => {
+        try {
+            const { LanguageToolDownloader } = await import('./languageToolDownloader');
+            await LanguageToolDownloader.ensureAvailable(context.extensionPath, context.globalStoragePath);
+        } catch (err) {
+            console.error('SoftCatalà: Error comprobando/copiando LanguageTool (no crítico):', err);
+        }
+    }, 0);
 
     // Crear el WebView Panel per mostrar errors
     errorsPanelProvider = new ErrorsPanelProvider(
@@ -125,7 +129,7 @@ export function activate(context: vscode.ExtensionContext) {
             );
 
             if (confirm === 'Eliminar') {
-                const success = LanguageToolHelper.deleteLanguageTool(context.extensionPath);
+                const success = LanguageToolHelper.deleteLanguageTool(context.globalStoragePath);
                 
                 if (success) {
                     vscode.window.showInformationMessage('✅ LanguageTool eliminat correctament. La correcció offline ja no està disponible.');
@@ -160,7 +164,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Crear el comprovador
-    checker = new CatalaChecker(context.globalStoragePath, errorsPanelProvider);
+    checker = new CatalaChecker(context.extensionPath, context.globalStoragePath, errorsPanelProvider);
 
     // Registrar el CodeActionProvider per a les correccions ràpides
     const codeActionProvider = vscode.languages.registerCodeActionsProvider(

@@ -10,6 +10,91 @@ export class LanguageToolDownloader {
     private static readonly JAR_NAME = 'languagetool-server.jar';
 
     /**
+     * Asegura que LanguageTool está disponible, buscando primero en extensionPath (bundled)
+     * y copiándolo a globalStoragePath si es necesario, o descargándolo si no está en ningún lado
+     */
+    public static async ensureAvailable(extensionPath: string, globalStoragePath: string): Promise<void> {
+        // Primero verificar si ya está en globalStorage (descargado anteriormente)
+        if (this.isDownloaded(globalStoragePath)) {
+            console.log('SoftCatalà: ✅ LanguageTool ya disponible en globalStorage');
+            return;
+        }
+
+        // Verificar si está bundled en la extensión
+        const bundledPath = path.join(extensionPath, 'languagetool', 'LanguageTool-6.0');
+        if (fs.existsSync(bundledPath)) {
+            const serverJarPath = path.join(bundledPath, this.JAR_NAME);
+            const libsPath = path.join(bundledPath, 'libs');
+            
+            if (fs.existsSync(serverJarPath) && fs.existsSync(libsPath)) {
+                console.log('SoftCatalà: ✅ LanguageTool encontrado en extensión, copiando a globalStorage...');
+                try {
+                    await this.copyLanguageToolToGlobalStorage(bundledPath, globalStoragePath);
+                    console.log('SoftCatalà: ✅ LanguageTool copiado correctamente a globalStorage');
+                    return;
+                } catch (error) {
+                    console.error('SoftCatalà: Error copiando LanguageTool:', error);
+                    // Continuar para intentar descarga si la copia falla
+                }
+            }
+        }
+
+        // Si no está bundled ni descargado, ofrecer descarga
+        console.log('SoftCatalà: LanguageTool no encontrado, ofreciendo descarga...');
+        const choice = await vscode.window.showInformationMessage(
+            'LanguageTool local no está disponible. ¿Quieres descargarlo (~100MB) para corrección offline?',
+            'Descargar',
+            'Ignorar'
+        );
+
+        if (choice === 'Descargar') {
+            try {
+                await this.ensureDownloaded(globalStoragePath);
+            } catch (err) {
+                console.error('SoftCatalà: Error descargando LanguageTool:', err);
+                vscode.window.showErrorMessage('No se pudo descargar LanguageTool. Revisa la consola para más detalles.');
+            }
+        }
+    }
+
+    /**
+     * Copia LanguageTool del bundle de la extensión a globalStorage
+     */
+    private static async copyLanguageToolToGlobalStorage(bundledPath: string, globalStoragePath: string): Promise<void> {
+        const outputDir = path.join(globalStoragePath, 'languagetool', 'LanguageTool-6.0');
+        
+        // Crear directorios
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        // Copiar recursivamente
+        await this.copyDirectoryRecursive(bundledPath, outputDir);
+    }
+
+    /**
+     * Copia un directorio recursivamente
+     */
+    private static async copyDirectoryRecursive(source: string, destination: string): Promise<void> {
+        if (!fs.existsSync(destination)) {
+            fs.mkdirSync(destination, { recursive: true });
+        }
+
+        const entries = fs.readdirSync(source, { withFileTypes: true });
+
+        for (const entry of entries) {
+            const sourcePath = path.join(source, entry.name);
+            const destPath = path.join(destination, entry.name);
+
+            if (entry.isDirectory()) {
+                await this.copyDirectoryRecursive(sourcePath, destPath);
+            } else {
+                fs.copyFileSync(sourcePath, destPath);
+            }
+        }
+    }
+
+    /**
      * Detecta si LanguageTool está descargado y es válido
      */
     public static isDownloaded(extensionPath: string): boolean {

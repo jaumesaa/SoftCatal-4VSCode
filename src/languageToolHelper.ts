@@ -2,36 +2,45 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 /**
- * Helper para acceder a LanguageTool que está incrustado en la extensión
+ * Helper para acceder a LanguageTool que está en globalStorage o bundled en la extensión
  */
 export class LanguageToolHelper {
     /**
-     * Obtiene la ruta a la carpeta raíz de LanguageTool
+     * Obtiene la ruta a la carpeta raíz de LanguageTool, buscando primero en globalStorage
      */
-    public static getLanguageToolPath(extensionPath: string): string {
+    public static getLanguageToolPath(extensionPath: string, globalStoragePath?: string): string {
+        // Primero buscar en globalStorage (donde se copia/descarga)
+        if (globalStoragePath) {
+            const globalPath = path.join(globalStoragePath, 'languagetool', 'LanguageTool-6.0');
+            if (fs.existsSync(globalPath)) {
+                return globalPath;
+            }
+        }
+        
+        // Fallback: buscar en la extensión (bundled)
         return path.join(extensionPath, 'languagetool', 'LanguageTool-6.0');
     }
 
     /**
      * Obtiene la ruta al JAR del servidor
      */
-    public static getServerJarPath(extensionPath: string): string {
-        return path.join(this.getLanguageToolPath(extensionPath), 'languagetool-server.jar');
+    public static getServerJarPath(extensionPath: string, globalStoragePath?: string): string {
+        return path.join(this.getLanguageToolPath(extensionPath, globalStoragePath), 'languagetool-server.jar');
     }
 
     /**
      * Obtiene la ruta a la carpeta de librerías
      */
-    public static getLibsPath(extensionPath: string): string {
-        return path.join(this.getLanguageToolPath(extensionPath), 'libs');
+    public static getLibsPath(extensionPath: string, globalStoragePath?: string): string {
+        return path.join(this.getLanguageToolPath(extensionPath, globalStoragePath), 'libs');
     }
 
     /**
      * Verifica que LanguageTool está disponible
      */
-    public static isAvailable(extensionPath: string): boolean {
-        const serverJarPath = this.getServerJarPath(extensionPath);
-        const libsPath = this.getLibsPath(extensionPath);
+    public static isAvailable(extensionPath: string, globalStoragePath?: string): boolean {
+        const serverJarPath = this.getServerJarPath(extensionPath, globalStoragePath);
+        const libsPath = this.getLibsPath(extensionPath, globalStoragePath);
 
         if (!fs.existsSync(serverJarPath)) {
             console.error('SoftCatalà: JAR de LanguageTool no encontrado en:', serverJarPath);
@@ -51,16 +60,16 @@ export class LanguageToolHelper {
             return false;
         }
 
-        console.log('SoftCatalà: ✅ LanguageTool está disponible y completo');
+        console.log('SoftCatalà: ✅ LanguageTool está disponible y completo en:', serverJarPath);
         return true;
     }
 
     /**
-     * Elimina LanguageTool de la extensión
-     * Esto libera ~100MB de espacio pero deshabilita la corrección offline permanentemente
+     * Elimina LanguageTool del globalStorage
+     * Esto libera ~100MB de espacio pero deshabilita la corrección offline
      */
-    public static deleteLanguageTool(extensionPath: string): boolean {
-        const languageToolPath = path.join(extensionPath, 'languagetool');
+    public static deleteLanguageTool(globalStoragePath: string): boolean {
+        const languageToolPath = path.join(globalStoragePath, 'languagetool');
 
         try {
             if (!fs.existsSync(languageToolPath)) {
